@@ -11,6 +11,54 @@ from scipy.special import kl_div
 from scipy.spatial import distance
 from itertools import combinations
 from networkx import from_numpy_matrix, spring_layout
+from joblib import Parallel, delayed
+from sklearn.manifold import (
+    TSNE, Isomap, LocallyLinearEmbedding, MDS, SpectralEmbedding)
+
+
+def _dist_klb(a1: np.ndarray, a2: np.ndarray):
+    dist = kl_div(a1, a2)
+    return dist[np.isfinite(dist)].sum()
+
+
+def _dist_sklb(a1: np.ndarray, a2: np.ndarray):
+    dist = kl_div(a1, a2) + kl_div(a1, a2)
+    return dist[np.isfinite(dist)].sum()
+
+
+def _dist_jsd(a1: np.ndarray, a2: np.ndarray):
+    dist = 0.5 * kl_div(a1, a2) + 0.5 * kl_div(a1, a2)
+    return dist[np.isfinite(dist)].sum()
+
+
+def _dist_jef(a1: np.ndarray, a2: np.ndarray): 
+    vals = (a1 - a2) * (np.log(a1) - np.log(a2))
+    vals[(vals <= 0) | ~np.isfinite(vals)] = 0.
+    return vals.sum()
+
+
+def _dist_hel(a1: np.ndarray, a2: np.ndarray):
+    a1[(a1 <= 0) | ~np.isfinite(a1)] = 1e-64
+    a2[(a2 <= 0) | ~np.isfinite(a2)] = 1e-64
+    hel_val = distance.euclidean(
+        np.sqrt(a1), np.sqrt(a2)) / np.sqrt(2)
+    return hel_val
+
+
+def _dist_bhat(a1: np.ndarray, a2: np.ndarray):
+    pq = a1 * a2
+    pq[(pq <= 0) | ~np.isfinite(pq)] = 1e-64
+    dist = -np.log(np.sum(np.sqrt(pq)))
+    return dist
+
+
+def _dist_jac(a1: np.ndarray, a2: np.ndarray,  top_words=100):
+    a = np.argsort(a1)[:-top_words-1:-1]
+    b = np.argsort(a2)[:-top_words-1:-1]
+    j_num = np.intersect1d(a, b, assume_unique=False).size
+    j_den = np.union1d(a, b).size
+    jac_val = j_num / j_den
+    return jac_val
 
 
 def get_topics_dist(
@@ -52,64 +100,38 @@ def get_topics_dist(
     Example
     -------
     """
-    topics_num = phi.shape[1]
+    phi_copy = np.array(phi)
+    topics_num = phi_copy.shape[1]
     topics_pairs = combinations(range(topics_num), 2)
 
     # Topics distances matrix
-    topics_dist = np.zeros(shape=(topics_num, topics_num), dtype=float)
+    topics_dists = np.zeros(shape=(topics_num, topics_num), dtype=float)
 
-    def enum_func(x):
-        return tqdm.tqdm(x) if verbose else x
+    dist_funcs = {
+        "klb": _dist_klb,
+        "sklb": _dist_sklb,
+        "jsd": _dist_jsd,
+        "jef": _dist_jef,
+        "hel": _dist_hel,
+        "bhat": _dist_bhat,
+        "jac": _dist_jac,
+    }
 
-    for i, j in enum_func(topics_pairs):
+    # topics_dists_raw = Parallel(n_jobs=-1, verbose=1)(
+    #     delayed(dist_funcs.get(method, "sklb"))
+    #         (phi[:, i], phi[:, j]) for i, j in topics_pairs)
 
-        if method == "klb":
-            val_raw = kl_div(phi[:, i], phi[:, j])
-            topics_dist[i, j] = val_raw[np.isfinite(val_raw)].sum()
+    for i, j in topics_pairs:
+        topics_dists[[(i, j), (j, i)]] = dist_funcs.get(method, "sklb")(
+            phi_copy[:, i], phi_copy[:, j])
 
-        elif method == "sklb":
-            val_raw = kl_div(phi[:, i], phi[:, j])\
-                + kl_div(phi[:, j], phi[:, i])
-            topics_dist[i, j] = val_raw[np.isfinite(val_raw)].sum()
+    return topics_dists
 
-        elif method == "jsd":
-            val_raw = 0.5 * kl_div(phi[:, i], phi[:, j])\
-                + 0.5 * kl_div(phi[:, j], phi[:, i])
-            topics_dist[i, j] = val_raw[np.isfinite(val_raw)].sum()
 
-        elif method == "jef":
-            p = phi[:, i]
-            q = phi[:, j]
-            vals = (p - q) * (np.log(p) - np.log(q))
-            vals[(vals <= 0) | ~np.isfinite(vals)] = 0.
-            topics_dist[i, j] = vals.sum()
-
-        elif method == "hel":
-            p = phi[:, i]
-            q = phi[:, j]
-            p[(p <= 0) | ~np.isfinite(p)] = 1e-64
-            q[(q <= 0) | ~np.isfinite(q)] = 1e-64
-            hel_val = distance.euclidean(
-                np.sqrt(p), np.sqrt(q)) / np.sqrt(2)
-            topics_dist[i, j] = hel_val
-
-        elif method == "bhat":
-            p = phi[:, i]
-            q = phi[:, j]
-            pq = p * q
-            pq[(pq <= 0) | ~np.isfinite(pq)] = 1e-64
-            dist = -np.log(np.sum(np.sqrt(pq)))
-            topics_dist[i, j] = dist
-
-        elif method == "jac":
-            a = np.argsort(phi[:, i])[:-top_words-1:-1]
-            b = np.argsort(phi[:, j])[:-top_words-1:-1]
-            j_num = np.intersect1d(a, b, assume_unique=False).size
-            j_den = np.union1d(a, b).size
-            jac_val = j_num / j_den
-            topics_dist[i, j] = jac_val
-
-    return topics_dist
+def _compute_graph_layout(matrix: np.ndarray, method_kws: dict = {}):
+    g = from_numpy_matrix(matrix)
+    layout = spring_layout(g, **method_kws)
+    return np.array(list(layout.values()))
 
 
 def get_topics_scatter(
@@ -124,16 +146,35 @@ def get_topics_scatter(
         Topics distance matrix.
     """
     if method == 'graph':
-        g = from_numpy_matrix(tdm)
-        layout = spring_layout(g, **method_kws)
-        coords = np.array(list(layout.values()))
-        coords = np.hstack((coords, np.arange(1, coords.shape[0] + 1)[:, None]))
-    elif method == 'pca':
-        pass
+        coords = _compute_graph_layout(tdm, **method_kws)
+    else:
+        method_kws.setdefault('n_components', 2)
 
-    topics_xy = DataFrame(coords, columns=['x', 'y', 'topic'])
-    topics_xy['topic'] = topics_xy['topic'].astype(int)
+        if method == 'tsne':
+            method_kws.setdefault('metric',  'precomputed')
+            transformer = TSNE(**method_kws)
+
+        elif method == 'sem':
+            method_kws.setdefault('affinity', 'precomputed')
+            transformer = SpectralEmbedding(**method_kws)
+
+        elif method == 'mds':
+            method_kws.setdefault('dissimilarity', 'precomputed')
+            transformer = MDS(**method_kws)
+
+        elif method == 'lle':
+            transformer = LocallyLinearEmbedding(**method_kws)
+
+        elif method == 'isomap':
+            transformer = Isomap(**method_kws)
+    
+        coords = transformer.fit_transform(tdm)
+
+    topics_xy = DataFrame(coords, columns=['x', 'y'])
+    topics_xy['topic'] = topics_xy.index.astype(int)
+
     return topics_xy
+
 
 # def get_stable_topics(
 #         closest_topics: np.ndarray,
