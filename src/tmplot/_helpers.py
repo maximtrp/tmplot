@@ -1,4 +1,6 @@
-__all__ = ['get_phi', 'get_theta', 'calc_terms_relevance', 'calc_topics_probs']
+__all__ = [
+    'get_phi', 'get_theta', 'get_relevant_terms', 'get_salient_terms',
+    'calc_terms_marg_probs', 'calc_topics_marg_probs']
 from numpy import ndarray
 from pandas import concat, Series, DataFrame
 from tomotopy import LDAModel, LLDAModel
@@ -63,7 +65,7 @@ def calc_terms_marg_probs(
     return phi.sum(axis=1)
 
 
-def calc_terms_salience(
+def get_salient_terms(
         terms_freqs: ndarray,
         phi: ndarray,
         ):
@@ -72,7 +74,7 @@ def calc_terms_salience(
     pass
 
 
-def calc_terms_relevance(
+def get_relevant_terms(
         phi: Union[ndarray, DataFrame],
         topic: int,
         lambda_: float = 0.3) -> Series:

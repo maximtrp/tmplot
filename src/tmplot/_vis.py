@@ -45,7 +45,8 @@ def plot_scatter_topics(
 
     circle_enc_kws.setdefault("x", X(**x_kws))
     circle_enc_kws.setdefault("y", Y(**y_kws))
-    circle_enc_kws.setdefault("size",
+    circle_enc_kws.setdefault(
+        "size",
         Size(size_col, **size_kws) if size_col else value(500))
 
     text_kws.setdefault("align", "center"),
@@ -73,4 +74,3 @@ def plot_scatter_topics(
         .encode(**text_enc_kws)
 
     return (points + text).configure_view(stroke='transparent')
-

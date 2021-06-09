@@ -14,6 +14,7 @@ from networkx import from_numpy_matrix, spring_layout
 from joblib import Parallel, delayed
 from sklearn.manifold import (
     TSNE, Isomap, LocallyLinearEmbedding, MDS, SpectralEmbedding)
+from _helpers import calc_topics_marg_probs
 
 
 def _dist_klb(a1: np.ndarray, a2: np.ndarray):
@@ -31,7 +32,7 @@ def _dist_jsd(a1: np.ndarray, a2: np.ndarray):
     return dist[np.isfinite(dist)].sum()
 
 
-def _dist_jef(a1: np.ndarray, a2: np.ndarray): 
+def _dist_jef(a1: np.ndarray, a2: np.ndarray):
     vals = (a1 - a2) * (np.log(a1) - np.log(a2))
     vals[(vals <= 0) | ~np.isfinite(vals)] = 0.
     return vals.sum()
@@ -135,9 +136,10 @@ def _compute_graph_layout(matrix: np.ndarray, method_kws: dict = {}):
 
 
 def get_topics_scatter(
-    tdm: np.ndarray,
-    method: str = 'graph',
-    method_kws: dict = {}) -> DataFrame:
+        tdm: np.ndarray,
+        theta: np.ndarray,
+        method: str = 'graph',
+        method_kws: dict = {}) -> DataFrame:
     """Calculating topics coordinates for a scatterplot.
 
     Parameters
@@ -167,11 +169,12 @@ def get_topics_scatter(
 
         elif method == 'isomap':
             transformer = Isomap(**method_kws)
-    
+
         coords = transformer.fit_transform(tdm)
 
     topics_xy = DataFrame(coords, columns=['x', 'y'])
     topics_xy['topic'] = topics_xy.index.astype(int)
+    topics_xy['size'] = calc_topics_marg_probs(theta)
 
     return topics_xy
 
@@ -268,9 +271,9 @@ def get_top_topic_words(
     """
     return phi.loc[:, topics_loc or phi.columns]\
         .apply(
-            lambda x: x\
-                .sort_values(ascending=False)\
-                .head(words_num).index, axis=0
+            lambda x: x
+            .sort_values(ascending=False)
+            .head(words_num).index, axis=0
         )
 
 
