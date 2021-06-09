@@ -74,9 +74,28 @@ def get_salient_terms(
     pass
 
 
+def calc_terms_probs_ratio(
+        phi: DataFrame,
+        topic: Union[str, int],
+        terms_num: int = 30,
+        lambda_: float = 0.3):
+    terms_probs = concat((
+        phi.sum(axis=1).rename('Marginal term probability, p(w)'),
+        phi.loc[:, topic].rename('Conditional term probability, p(w|t)')
+        ), axis=1)
+
+    relevant_idx = get_relevant_terms(phi, topic, lambda_).index
+    terms_probs_slice = terms_probs.loc[relevant_idx].head(terms_num)
+
+    return terms_probs_slice\
+        .reset_index(drop=False)\
+        .melt(id_vars=['index'], var_name='Type', value_name='Probability')\
+        .rename(columns={'index': 'Terms'})
+
+
 def get_relevant_terms(
         phi: Union[ndarray, DataFrame],
-        topic: int,
+        topic: Union[str, int],
         lambda_: float = 0.3) -> Series:
     """[summary]
 
