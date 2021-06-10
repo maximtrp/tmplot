@@ -1,7 +1,4 @@
-# TODO: calculate distances between topics using a number of distance metrics
-# TODO: top words in topic
 # TODO: top docs in topic
-# TODO: word salience?
 # TODO: stable topics
 import numpy as np
 import tqdm

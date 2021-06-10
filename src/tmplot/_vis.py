@@ -16,6 +16,7 @@ def plot_scatter_topics(
         label_col: str = None,
         color_col: str = None,
         topic_col: str = None,
+        font_size: int = 12,
         x_kws: dict = {},
         y_kws: dict = {},
         circle_kws: dict = {},
@@ -57,7 +58,7 @@ def plot_scatter_topics(
     text_enc_kws.setdefault("x", X(**x_kws))
     text_enc_kws.setdefault("y", Y(**y_kws))
     text_enc_kws.setdefault("text", Text(topic_col))
-    text_enc_kws.setdefault("size", value(12))
+    text_enc_kws.setdefault("size", value(font_size))
 
     if label_col:
         circle_enc_kws.update({'tooltip': Tooltip(label_col, **size_kws)})
@@ -91,7 +92,8 @@ def plot_scatter_topics(
 
     return (rule + rule2 + points + text)\
         .configure_view(stroke='transparent')\
-        .configure_legend(orient='bottom')
+        .configure_legend(orient='bottom', labelFontSize=font_size, titleFontSize=font_size)\
+        .configure_axis(labelFontSize=font_size, titleFontSize=font_size)
 
 
 def plot_terms(
@@ -99,18 +101,25 @@ def plot_terms(
         x_col: str = 'Probability',
         y_col: str = 'Terms',
         color_col: str = 'Type',
+        font_size: int = 12,
         chart_kws: dict = {},
         bar_kws: dict = {},
         x_kws: dict = {},
         y_kws: dict = {},
         color_kws: dict = {}) -> Chart:
     x_kws.setdefault('stack', None)
+    y_kws.setdefault('sort', None)
     y_kws.setdefault('title', None)
-    bar_kws.setdefault('opacity', 0.5)
+    # bar_kws.setdefault('opacity', 1)
     color_kws.setdefault('legend', Legend(orient='bottom'))
+    color_kws.setdefault('scale', Scale(scheme='category20'))
 
-    return Chart(terms_probs, **chart_kws).mark_bar(**bar_kws).encode(
-        x=X(x_col, **x_kws),
-        y=Y(y_col, **y_kws),
-        color=Color(color_col, **color_kws)
-    )
+    return Chart(terms_probs, **chart_kws)\
+        .mark_bar(**bar_kws)\
+        .encode(
+            x=X(x_col, **x_kws),
+            y=Y(y_col, **y_kws),
+            color=Color(color_col, **color_kws)
+        )\
+        .configure_axis(labelFontSize=font_size, titleFontSize=font_size)\
+        .configure_legend(labelFontSize=font_size, titleFontSize=font_size)
