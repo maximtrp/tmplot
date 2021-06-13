@@ -120,7 +120,7 @@ def get_topics_dist(
     #         (phi[:, i], phi[:, j]) for i, j in topics_pairs)
 
     for i, j in topics_pairs:
-        topics_dists[[(i, j), (j, i)]] = dist_funcs.get(method, "sklb")(
+        topics_dists[((i, j), (j, i))] = dist_funcs.get(method, "sklb")(
             phi_copy[:, i], phi_copy[:, j])
 
     return topics_dists

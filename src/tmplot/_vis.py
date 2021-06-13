@@ -2,10 +2,11 @@
 # TODO: heatmap of docs in topics
 # TODO: topic dynamics in time
 # TODO: word cloud
-from altair import Chart, X, Y, Size, Color, Tooltip, value, Text, Scale, Legend
+from typing import Union, Iterable, Optional
+from pandas import DataFrame  # , option_context
 from numpy import ndarray
-from pandas import DataFrame
-from typing import Union
+from altair import (
+    Chart, X, Y, Size, Color, Tooltip, value, Text, Scale, Legend)
 
 
 def plot_scatter_topics(
@@ -123,3 +124,16 @@ def plot_terms(
         )\
         .configure_axis(labelFontSize=font_size, titleFontSize=font_size)\
         .configure_legend(labelFontSize=font_size, titleFontSize=font_size)
+
+
+def plot_docs(
+        theta: ndarray,
+        docs: Optional[Iterable] = None) -> DataFrame:
+    # with option_context('display.max_colwidth', 0):
+    #     pass
+    # df_docs = pd.DataFrame(
+    # list(map(lambda x: " ".join(list(map(lambda x: model.vocabs[x], model.docs[x].words))), range(10))), columns=['docs'])
+    # #  df_docs.style.set_properties(**{'text-align': 'center'})
+    # HTML("<style>.max{font-size: 1.1em !important;}table td{text-align: left !important}table th{text-align: center !important}</style>"
+    #      + df_docs.to_html(index=False, classes="max"))
+    pass

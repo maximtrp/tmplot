@@ -1,21 +1,22 @@
 __all__ = [
     'get_phi', 'get_theta', 'get_relevant_terms', 'get_salient_terms',
     'calc_terms_marg_probs', 'calc_topics_marg_probs']
+from typing import Union, Optional, Iterable
+from functools import partial
 from numpy import ndarray
 from pandas import concat, Series, DataFrame
-from tomotopy import LDAModel, LLDAModel
-from functools import partial
-from joblib import delayed, Parallel
-from typing import Union
+from tomotopy import (
+    LDAModel as tomotopyLDA,
+    LLDAModel as tomotopyLLDA) 
+from gensim.models.ldamodel import LdaModel as gensimLDA
 
 
 def get_phi(
-        model: object) -> ndarray:
+        model: object,
+        model_dictionary: dict = None) -> ndarray:
     """Returns topics (T) vs words (W) matrix of shape (T, W)."""
 
-    tomotopy_models = [LDAModel, LLDAModel]
-
-    if any(map(partial(isinstance, model), tomotopy_models)):
+    if _is_tomotopy(model):
 
         # Topics vs words distributions
         twd = map(
@@ -25,21 +26,47 @@ def get_phi(
         # Concatenating into DataFrame
         phi = concat(twd, axis=1)
 
-        # Settings terms from vocabulary as index
+        # Specifying terms from vocabulary as index
         phi.index = model.vocabs
+
+    elif _is_gensim(model):
+
+        twd = pd.DataFrame(model.get_topics().T)
+        model_dictionary
 
     return phi
 
 
-def get_theta(
-        model: object) -> DataFrame:
-    tomotopy_models = [LDAModel, LLDAModel]
+def _is_tomotopy(model: object) -> bool:
+    tomotopy_models = [tomotopyLDA, tomotopyLLDA]
+    return any(map(partial(isinstance, model), tomotopy_models))
 
-    if any(map(partial(isinstance, model), tomotopy_models)):
+
+def _is_gensim(model: object) -> bool:
+    gensim_models = [gensimLDA]
+    return any(map(partial(isinstance, model), gensim_models))
+
+
+def get_theta(
+        model: object,
+        gensim_dict: gensim.corpora.dictionary.Dictionary = None) -> DataFrame:
+
+    if _is_tomotopy(model):
         tdd = map(lambda x: Series(x.get_topic_dist()), model.docs)
         theta = concat(tdd, axis=1)
+    elif _is_gensim(model):
 
     return theta
+
+
+def get_top_docs(
+        model: object = None,
+        theta: ndarray = None,
+        docs: Optional[Iterable] = None) -> DataFrame:
+    if model:
+
+    elif theta:
+
 
 
 def calc_topics_marg_probs(
