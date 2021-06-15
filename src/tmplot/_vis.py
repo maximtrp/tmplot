@@ -18,15 +18,48 @@ def plot_scatter_topics(
         color_col: str = None,
         topic_col: str = None,
         font_size: int = 12,
-        x_kws: dict = {},
-        y_kws: dict = {},
-        circle_kws: dict = {},
-        circle_enc_kws: dict = {},
-        text_kws: dict = {},
-        text_enc_kws: dict = {},
-        size_kws: dict = {},
-        color_kws: dict = {},
-        ) -> Chart:
+        x_kws: dict = None,
+        y_kws: dict = None,
+        circle_kws: dict = None,
+        circle_enc_kws: dict = None,
+        text_kws: dict = None,
+        text_enc_kws: dict = None,
+        size_kws: dict = None,
+        color_kws: dict = None) -> Chart:
+
+    if not x_kws:
+        x_kws = {'shorthand': x_col, 'axis': None}
+
+    if not y_kws:
+        y_kws = {'shorthand': y_col, 'axis': None}
+
+    if not circle_kws:
+        circle_kws = {"opacity": 0.33, "stroke": 'black', "strokeWidth": 1}
+
+    if not size_kws:
+        size_kws = {
+            'title': 'Marginal topic distribution',
+            'scale': Scale(range=[0, 3000])}
+
+    if not circle_enc_kws:
+        circle_enc_kws = {
+            "x": X(**x_kws),
+            "y": Y(**y_kws),
+            "size": Size(size_col, **size_kws) if size_col else value(500)}
+
+    if not text_kws:
+        text_kws = {"align": "center", "baseline": "middle"}
+
+    if not text_enc_kws:
+        text_enc_kws = {
+            "x": X(**x_kws),
+            "y": Y(**y_kws),
+            "text": Text(topic_col),
+            "size": value(font_size)}
+
+    if not color_kws:
+        color_kws = {}
+
     data = DataFrame(topics_coords, columns=[x_col, y_col])\
         if isinstance(topics_coords, ndarray)\
         else topics_coords.copy()
@@ -34,32 +67,6 @@ def plot_scatter_topics(
     if not topic_col:
         topic_col = "topic"
         data = data.assign(**{topic_col: range(1, len(topics_coords) + 1)})
-
-    circle_kws.setdefault("opacity", 0.33)
-    circle_kws.setdefault("stroke", 'black')
-    circle_kws.setdefault("strokeWidth", 1)
-
-    x_kws.update({'shorthand': x_col})
-    x_kws.setdefault('axis', None)
-
-    y_kws.update({'shorthand': y_col})
-    y_kws.setdefault('axis', None)
-
-    size_kws.setdefault('title', 'Marginal topic distribution')
-    size_kws.setdefault('scale', Scale(range=[0, 3000]))
-    circle_enc_kws.setdefault("x", X(**x_kws))
-    circle_enc_kws.setdefault("y", Y(**y_kws))
-    circle_enc_kws.setdefault(
-        "size",
-        Size(size_col, **size_kws) if size_col else value(500))
-
-    text_kws.setdefault("align", "center"),
-    text_kws.setdefault("baseline", "middle")
-
-    text_enc_kws.setdefault("x", X(**x_kws))
-    text_enc_kws.setdefault("y", Y(**y_kws))
-    text_enc_kws.setdefault("text", Text(topic_col))
-    text_enc_kws.setdefault("size", value(font_size))
 
     if label_col:
         circle_enc_kws.update({'tooltip': Tooltip(label_col, **size_kws)})
@@ -93,7 +100,10 @@ def plot_scatter_topics(
 
     return (rule + rule2 + points + text)\
         .configure_view(stroke='transparent')\
-        .configure_legend(orient='bottom', labelFontSize=font_size, titleFontSize=font_size)\
+        .configure_legend(
+            orient='bottom',
+            labelFontSize=font_size,
+            titleFontSize=font_size)\
         .configure_axis(labelFontSize=font_size, titleFontSize=font_size)
 
 

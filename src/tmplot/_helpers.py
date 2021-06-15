@@ -1,19 +1,20 @@
 __all__ = [
     'get_phi', 'get_theta', 'get_relevant_terms', 'get_salient_terms',
     'calc_terms_marg_probs', 'calc_topics_marg_probs']
-from typing import Union, Optional, Iterable
+from typing import Union, Optional, Sequence
 from functools import partial
-from numpy import ndarray
+from numpy import ndarray, zeros
 from pandas import concat, Series, DataFrame
 from tomotopy import (
     LDAModel as tomotopyLDA,
-    LLDAModel as tomotopyLLDA) 
+    LLDAModel as tomotopyLLDA)
 from gensim.models.ldamodel import LdaModel as gensimLDA
+from bitermplus._btm import BTM
 
 
 def get_phi(
         model: object,
-        model_dictionary: dict = None) -> ndarray:
+        vocabulary: Optional[Sequence] = None) -> DataFrame:
     """Returns topics (T) vs words (W) matrix of shape (T, W)."""
 
     if _is_tomotopy(model):
@@ -31,8 +32,13 @@ def get_phi(
 
     elif _is_gensim(model):
 
-        twd = pd.DataFrame(model.get_topics().T)
-        model_dictionary
+        twd = DataFrame(model.get_topics().T)
+        if vocabulary:
+            twd.index = vocabulary
+
+    elif _is_btmplus(model):
+        twd = model.df_words_topics_
+        pass
 
     return phi
 
@@ -47,14 +53,27 @@ def _is_gensim(model: object) -> bool:
     return any(map(partial(isinstance, model), gensim_models))
 
 
+def _is_btmplus(model: object) -> bool:
+    return isinstance(model, BTM)
+
+
 def get_theta(
         model: object,
-        gensim_dict: gensim.corpora.dictionary.Dictionary = None) -> DataFrame:
+        gensim_corpus: list = None) -> DataFrame:
 
     if _is_tomotopy(model):
         tdd = map(lambda x: Series(x.get_topic_dist()), model.docs)
         theta = concat(tdd, axis=1)
+
     elif _is_gensim(model):
+        tdd = list(map(model.get_document_topics, gensim_corpus))
+        theta = DataFrame(zeros((len(tdd), model.num_topics)))
+        for doc_id, doc_topic in enumerate(tdd):
+            for topic_id, topic_prob in doc_topic:
+                theta.loc[doc_id, topic_id] = topic_prob
+
+    elif _is_btmplus(model):
+        theta = DataFrame(model.matrix_topics_docs_)
 
     return theta
 
@@ -62,15 +81,15 @@ def get_theta(
 def get_top_docs(
         model: object = None,
         theta: ndarray = None,
-        docs: Optional[Iterable] = None) -> DataFrame:
+        docs: Optional[Sequence] = None) -> DataFrame:
     if model:
-
+        pass
     elif theta:
-
+        pass
 
 
 def calc_topics_marg_probs(
-        theta: DataFrame):
+        theta: Union[DataFrame, ndarray]):
     """Calculate marginal topics probabilities"""
     return theta.sum(axis=1)
 

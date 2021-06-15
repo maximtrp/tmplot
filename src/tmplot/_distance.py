@@ -1,14 +1,12 @@
 # TODO: top docs in topic
 # TODO: stable topics
-import numpy as np
-import tqdm
+from typing import Union, List
+from itertools import combinations
 from pandas import DataFrame
-from typing import Union, Tuple, List
+import numpy as np
 from scipy.special import kl_div
 from scipy.spatial import distance
-from itertools import combinations
 from networkx import from_numpy_matrix, spring_layout
-from joblib import Parallel, delayed
 from sklearn.manifold import (
     TSNE, Isomap, LocallyLinearEmbedding, MDS, SpectralEmbedding)
 from _helpers import calc_topics_marg_probs
@@ -61,19 +59,14 @@ def _dist_jac(a1: np.ndarray, a2: np.ndarray,  top_words=100):
 
 def get_topics_dist(
         phi: Union[np.ndarray, DataFrame],
-        ref: int = 0,
         method: str = "sklb",
-        thres: float = 0.9,
-        top_words: int = 100,
-        verbose: bool = True) -> np.ndarray:
+        **kwargs) -> np.ndarray:
     """Finding closest topics in models.
 
     Parameters
     ----------
     phi : Union[ndarray, DataFrame]
         Sequence of words vs topics matrices (W x T).
-    ref : int = 0
-        Index of reference matrix (zero-based indexing).
     method : str = "sklb"
         Comparison method. Possible variants:
         1) "klb" - Kullback-Leibler divergence.
@@ -82,17 +75,13 @@ def get_topics_dist(
         4) "jef" - Jeffrey's divergence.
         5) "hel" - Hellinger distance.
         6) "bhat" - Bhattacharyya distance.
-        6) "jac" - Jaccard index.
-    thres : float = 0.9
-        Threshold for topic filtering.
-    top_words : int = 100
-        Number of top words in each topic to use in Jaccard index calculation.
-    verbose : bool = True
-        Verbose output (progress bar).
+        7) "jac" - Jaccard index.
+    **kwargs : dict
+        Keyword arguments passed to distance function.
 
     Returns
     -------
-    dist : numpy.ndarray
+    numpy.ndarray
         Topics distances matrix.
 
     Example
@@ -115,13 +104,10 @@ def get_topics_dist(
         "jac": _dist_jac,
     }
 
-    # topics_dists_raw = Parallel(n_jobs=-1, verbose=1)(
-    #     delayed(dist_funcs.get(method, "sklb"))
-    #         (phi[:, i], phi[:, j]) for i, j in topics_pairs)
-
     for i, j in topics_pairs:
-        topics_dists[((i, j), (j, i))] = dist_funcs.get(method, "sklb")(
-            phi_copy[:, i], phi_copy[:, j])
+        _dist_func = dist_funcs.get(method, "sklb")
+        topics_dists[((i, j), (j, i))] = _dist_func(
+            phi_copy[:, i], phi_copy[:, j], **kwargs)
 
     return topics_dists
 
@@ -133,19 +119,31 @@ def _compute_graph_layout(matrix: np.ndarray, method_kws: dict = {}):
 
 
 def get_topics_scatter(
-        tdm: np.ndarray,
+        topic_dists: np.ndarray,
         theta: np.ndarray,
         method: str = 'graph',
-        method_kws: dict = {}) -> DataFrame:
+        method_kws: dict = None) -> DataFrame:
     """Calculating topics coordinates for a scatterplot.
 
     Parameters
     ----------
-    tdm : numpy.ndarray
+    topic_dists : numpy.ndarray
         Topics distance matrix.
+    theta : numpy.ndarray
+        Topics vs documents probability matrix.
+    method : str = 'graph'
+        Method to calculate topics scatter coordinates (X and Y).
+    method_kws : dict = None
+        Keyword arguments passed to method function. Possible values:
+        1) 'graph' - Fruchterman-Reingold force-directed algorithm.
+        2) 'tsne' - TSNE.
+        2) 'sem' - SpectralEmbedding.
+        2) 'mds' - MDS.
+        2) 'lle' - LocallyLinearEmbedding.
+        6) 'isomap' - Isomap.
     """
     if method == 'graph':
-        coords = _compute_graph_layout(tdm, **method_kws)
+        coords = _compute_graph_layout(topic_dists, **method_kws)
     else:
         method_kws.setdefault('n_components', 2)
 
@@ -167,79 +165,13 @@ def get_topics_scatter(
         elif method == 'isomap':
             transformer = Isomap(**method_kws)
 
-        coords = transformer.fit_transform(tdm)
+        coords = transformer.fit_transform(topic_dists)
 
     topics_xy = DataFrame(coords, columns=['x', 'y'])
     topics_xy['topic'] = topics_xy.index.astype(int)
     topics_xy['size'] = calc_topics_marg_probs(theta)
 
     return topics_xy
-
-
-# def get_stable_topics(
-#         closest_topics: np.ndarray,
-#         dist: np.ndarray,
-#         norm: bool = True,
-#         inverse: bool = True,
-#         inverse_factor: float = 1.0,
-#         ref: int = 0,
-#         thres: float = 0.9,
-#         thres_models: int = 2) -> Tuple[np.ndarray, np.ndarray]:
-#     """Finding stable topics in models.
-
-#     Parameters
-#     ----------
-#     closest_topics : np.ndarray
-#         Closest topics indices in a two-dimensional array.
-#         Columns correspond to the compared matrices (their indices),
-#         rows are the closest topics pairs. Typically, this should be
-#         the first value returned by :meth:`bitermplus.get_closest_topics`
-#         function.
-#     dist : np.ndarray
-#         Distance values: Kullback-Leibler divergence or Jaccard index values
-#         corresponding to the matrix of the closest topics.
-#         Typically, this should be the second value returned by
-#         :meth:`bitermplus.get_closest_topics` function.
-#     norm : bool = True
-#         Normalize distance values (passed as ``dist`` argument).
-#     inverse : bool = True
-#         Inverse distance values by subtracting them from ``inverse_factor``.
-#     inverse_factor : float = 1.0
-#         Subtract distance values from this factor to inverse.
-#     ref : int = 0
-#         Index of reference matrix (i.e. reference column index,
-#         zero-based indexing).
-#     thres : float = 0.9
-#         Threshold for distance values filtering.
-#     thres_models : int = 2
-#         Minimum topic recurrence frequency across all models.
-
-#     Returns
-#     -------
-#     stable_topics : np.ndarray
-#         Filtered matrix of the closest topics indices (i.e. stable topics).
-#     dist : np.ndarray
-#         Filtered distance values corresponding to the matrix of
-#         the closest topics.
-
-#     See Also
-#     --------
-#     bitermplus.get_closest_topics
-
-#     Example
-#     -------
-#     >>> closest_topics, kldiv = btm.get_closest_topics(
-#     ...     *list(map(lambda x: x.matrix_topics_words_, models)))
-#     >>> stable_topics, stable_kldiv = btm.get_stable_topics(
-#     ...     closest_topics, kldiv)
-#     """
-#     dist_arr = np.asarray(dist)
-#     dist_ready = dist_arr / dist_arr.max() if norm else dist_arr.copy()
-#     dist_ready = inverse_factor - dist_ready if inverse else dist_ready
-#     mask = (
-#         np.sum(np.delete(dist_ready, ref, axis=1) >= thres, axis=1)
-#         >= thres_models)
-#     return closest_topics[mask], dist_ready[mask]
 
 
 def get_top_topic_words(

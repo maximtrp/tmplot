@@ -1,7 +1,37 @@
-from typing import Iterable
+from typing import Iterable, Optional
 from ipywidgets import widgets as wdg
 from numpy import ndarray
+from pandas import DataFrame
 from ._vis import plot_scatter_topics, plot_terms, plot_docs
+from ._distance import get_topics_dist, get_topics_scatter
+from ._helpers import calc_topics_marg_probs
+
+
+def prepare(
+        phi: ndarray,
+        theta: ndarray,
+        labels: Optional[Iterable] = None,
+        dist_kws: dict = None,
+        scatter_kws: dict = None) -> DataFrame:
+    """[summary]
+
+    Parameters
+    ----------
+    phi : ndarray
+        [description]
+    theta : ndarray
+        [description]
+    dist_kws : dict, optional
+        [description], by default None
+    scatter_kws : dict, optional
+        [description], by default None
+    """
+    topics_dists = get_topics_dist(phi, **dist_kws)
+    topics_marg_prob_sum = calc_topics_marg_probs(theta)
+    topics_coords = get_topics_scatter(topics_dists, theta, **scatter_kws)
+    topics_coords['size'] = topics_marg_prob_sum
+    topics_coords['labels'] = labels or theta.columns
+    return topics_coords
 
 
 def report(
@@ -39,6 +69,10 @@ def report(
     funcs = [plot_scatter_topics, plot_terms, plot_docs]
     funcs_args = [topics_kws, words_kws, docs_kws]
     show = [show_topics, show_words, show_docs]
+
+    topics_kws.update({})
+    words_kws.update({})
+    docs_kws.update({})
 
     for active, header, func, kwargs in zip(show, headers, funcs, funcs_args):
         if active:
