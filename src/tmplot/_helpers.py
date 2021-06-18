@@ -3,6 +3,7 @@ __all__ = [
     'calc_terms_marg_probs', 'calc_topics_marg_probs']
 from typing import Union, Optional, Sequence, List, Any
 from functools import partial
+from math import log
 from numpy import ndarray, zeros, argsort, array, arange
 from pandas import concat, Series, DataFrame
 from tomotopy import (
@@ -105,13 +106,15 @@ def get_top_docs(
 
 
 def calc_topics_marg_probs(
-        theta: Union[DataFrame, ndarray]):
+        theta: Union[DataFrame, ndarray],
+        topic_id: int = None):
     """Calculate marginal topics probabilities"""
-    return theta.sum(axis=1)
+    return theta[topic_id, :].sum() if topic_id else theta.sum(axis=1)
 
 
 def calc_terms_marg_probs(
-        phi: Union[ndarray, DataFrame]) -> Union[ndarray, Series]:
+        phi: Union[ndarray, DataFrame],
+        word_id: Optional[int] = None) -> Union[ndarray, Series]:
     """Calculate marginal terms probabilities.
 
     Parameters
@@ -124,16 +127,35 @@ def calc_terms_marg_probs(
     Union[ndarray, Series]
         Marginal terms probabilities.
     """
-    return phi.sum(axis=1)
+    if word_id:
+        if isinstance(phi, ndarray):
+            return phi[word_id, :].sum()
+        elif isinstance(phi, DataFrame):
+            return phi.iloc[word_id, :].sum()
+    else:
+        return phi.sum(axis=1)
 
 
 def get_salient_terms(
         terms_freqs: ndarray,
         phi: ndarray,
+        theta: ndarray,
         ):
+    p_t = array(calc_topics_marg_probs(theta))
+    p_w = array(calc_terms_marg_probs(phi))
+
+    def _p_tw(phi, w, t):
+        return phi[w, t] * p_t[t] / p_w[w]
+
+    saliency = array([
+        terms_freqs[w] * sum([
+            _p_tw(phi, w, t) * log(_p_tw(phi, w, t) / p_t[t])
+            for t in range(phi.shape[1])])
+        for w in range(phi.shape[0])
+    ])
     # saliency(term w) = frequency(w) * [sum_t p(t | w) * log(p(t | w)/p(t))] for topics t
     # p(t | w) = p(w | t) * p(t) / p(w)
-    pass
+    return saliency
 
 
 def calc_terms_probs_ratio(
