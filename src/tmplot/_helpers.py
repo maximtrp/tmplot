@@ -1,9 +1,9 @@
 __all__ = [
     'get_phi', 'get_theta', 'get_relevant_terms', 'get_salient_terms',
     'calc_terms_marg_probs', 'calc_topics_marg_probs']
-from typing import Union, Optional, Sequence
+from typing import Union, Optional, Sequence, List, Any
 from functools import partial
-from numpy import ndarray, zeros
+from numpy import ndarray, zeros, argsort, array, arange
 from pandas import concat, Series, DataFrame
 from tomotopy import (
     LDAModel as tomotopyLDA,
@@ -59,7 +59,7 @@ def _is_btmplus(model: object) -> bool:
 
 def get_theta(
         model: object,
-        gensim_corpus: list = None) -> DataFrame:
+        gensim_corpus: Optional[List] = None) -> DataFrame:
 
     if _is_tomotopy(model):
         tdd = map(lambda x: Series(x.get_topic_dist()), model.docs)
@@ -81,11 +81,27 @@ def get_theta(
 def get_top_docs(
         model: object = None,
         theta: ndarray = None,
-        docs: Optional[Sequence] = None) -> DataFrame:
+        gensim_corpus: Optional[List] = None,
+        docs: Optional[Sequence] = None,
+        docs_num: int = 20,
+        topics_idx: Sequence[Any] = None) -> DataFrame:
+    if not any(model, theta):
+        raise ValueError("Please pass a model or a theta matrix to function")
+
     if model:
-        pass
-    elif theta:
-        pass
+        theta = get_theta(model, gensim_corpus=gensim_corpus)
+
+    def _select_docs(docs, theta, topic_id: int):
+        probs = theta[:, topic_id]
+        idx = argsort(probs)[:-docs_num-1:-1]
+        result = Series(array(docs)[idx])
+        result.name = 'topic{}'.format(topic_id)
+        return result
+
+    topics_num = theta.shape[1]
+    topics_idx = arange(topics_num) if topics_idx is None else topics_idx
+    return concat(
+        map(lambda x: _select_docs(docs, theta, x), topics_idx), axis=1)
 
 
 def calc_topics_marg_probs(
