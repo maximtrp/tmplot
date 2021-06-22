@@ -1,45 +1,48 @@
-from typing import Iterable, Optional
+from typing import Optional, Sequence
 from ipywidgets import widgets as wdg
-from numpy import ndarray
 from pandas import DataFrame
-from ._vis import plot_scatter_topics, plot_terms, plot_docs
-from ._distance import get_topics_dist, get_topics_scatter
-from ._helpers import calc_topics_marg_probs
+from _distance import get_topics_dist, get_topics_scatter
+from _vis import plot_scatter_topics, plot_terms, plot_docs
+from _helpers import (
+    calc_terms_probs_ratio, calc_topics_marg_probs, get_phi, get_theta)
+from copy import deepcopy
 
 
 def prepare(
-        phi: ndarray,
-        theta: ndarray,
-        labels: Optional[Iterable] = None,
+        model: object,
+        labels: Optional[Sequence] = None,
         dist_kws: dict = None,
         scatter_kws: dict = None) -> DataFrame:
     """[summary]
 
     Parameters
     ----------
-    phi : ndarray
-        [description]
-    theta : ndarray
+    model : object
         [description]
     dist_kws : dict, optional
         [description], by default None
     scatter_kws : dict, optional
         [description], by default None
     """
+    if not dist_kws:
+        dist_kws = {}
+    if not scatter_kws:
+        scatter_kws = {}
+
+    phi = get_phi(model)
+    theta = get_theta(model)
     topics_dists = get_topics_dist(phi, **dist_kws)
     topics_marg_prob_sum = calc_topics_marg_probs(theta)
     topics_coords = get_topics_scatter(topics_dists, theta, **scatter_kws)
     topics_coords['size'] = topics_marg_prob_sum
-    topics_coords['labels'] = labels or theta.columns
+    topics_coords['labels'] = labels or theta.index
     return topics_coords
 
 
 def report(
         model: object = None,
-        theta: ndarray = None,
-        phi: ndarray = None,
-        vocab: Iterable = None,
-        docs: Iterable = None,
+        vocab: Optional[Sequence] = None,
+        docs: Optional[Sequence] = None,
         layout: wdg.Layout = None,
         show_headers: bool = True,
         show_docs: bool = True,
@@ -48,6 +51,10 @@ def report(
         topics_kws: dict = None,
         words_kws: dict = None,
         docs_kws: dict = None) -> wdg.GridBox:
+    _topics_kws = {} if not topics_kws else deepcopy(topics_kws)
+    _words_kws = {} if not words_kws else deepcopy(words_kws)
+    _docs_kws = {} if not docs_kws else deepcopy(docs_kws)
+
     # Headers init
     topics_header = wdg.HTML('<b>Topics scatter plot</b>')\
         if show_headers and show_topics else None
@@ -70,9 +77,16 @@ def report(
     funcs_args = [topics_kws, words_kws, docs_kws]
     show = [show_topics, show_words, show_docs]
 
-    topics_kws.update({})
-    words_kws.update({})
-    docs_kws.update({})
+    if 'topics_coords' not in _topics_kws:
+        topics_coords = prepare(model)
+        _topics_kws.update({'topics_coords': topics_coords})
+
+    if 'terms_probs' not in _words_kws:
+        phi = get_phi(model)
+        terms_probs = calc_terms_probs_ratio(phi, 24)
+        _words_kws.update({'terms_probs', terms_probs})
+    
+    #docs_kws.update({})
 
     for active, header, func, kwargs in zip(show, headers, funcs, funcs_args):
         if active:

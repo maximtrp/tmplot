@@ -142,6 +142,9 @@ def get_topics_scatter(
         2) 'lle' - LocallyLinearEmbedding.
         6) 'isomap' - Isomap.
     """
+    if not method_kws:
+        method_kws = {}
+
     if method == 'graph':
         coords = _compute_graph_layout(topic_dists, **method_kws)
     else:
@@ -177,7 +180,7 @@ def get_topics_scatter(
 def get_top_topic_words(
         phi: DataFrame,
         words_num: int = 20,
-        topics_loc: Union[List[int], np.ndarray] = None) -> DataFrame:
+        topics_idx: Union[List[int], np.ndarray] = None) -> DataFrame:
     """Select top topic words from a fitted model.
 
     Parameters
@@ -186,7 +189,7 @@ def get_top_topic_words(
         Words vs topics matrix with words as indices and topics as columns.
     words_num : int = 20
         The number of words to select.
-    topics_loc : Union[List, numpy.ndarray] = None
+    topics_idx : Union[List, numpy.ndarray] = None
         Topics indices. Meant to be used to select only stable
         topics.
 
@@ -198,7 +201,7 @@ def get_top_topic_words(
     Example
     -------
     """
-    return phi.loc[:, topics_loc or phi.columns]\
+    return phi.loc[:, topics_idx or phi.columns]\
         .apply(
             lambda x: x
             .sort_values(ascending=False)

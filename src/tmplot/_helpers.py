@@ -4,7 +4,7 @@ __all__ = [
 from typing import Union, Optional, Sequence, List, Any
 from functools import partial
 from math import log
-from numpy import ndarray, zeros, argsort, array, arange
+from numpy import ndarray, zeros, argsort, array, arange, vstack
 from pandas import concat, Series, DataFrame
 from tomotopy import (
     LDAModel as tomotopyLDA,
@@ -21,12 +21,10 @@ def get_phi(
     if _is_tomotopy(model):
 
         # Topics vs words distributions
-        twd = map(
-            lambda x: Series(model.get_topic_word_dist(x)),
-            range(model.k))
+        twd = list(map(lambda x: model.get_topic_word_dist(x), range(model.k)))
 
         # Concatenating into DataFrame
-        phi = concat(twd, axis=1)
+        phi = DataFrame(vstack(twd).T)
 
         # Specifying terms from vocabulary as index
         phi.index = model.vocabs
@@ -63,8 +61,8 @@ def get_theta(
         gensim_corpus: Optional[List] = None) -> DataFrame:
 
     if _is_tomotopy(model):
-        tdd = map(lambda x: Series(x.get_topic_dist()), model.docs)
-        theta = concat(tdd, axis=1)
+        tdd = list(map(lambda x: x.get_topic_dist(), model.docs))
+        theta = DataFrame(vstack(tdd).T)
 
     elif _is_gensim(model):
         tdd = list(map(model.get_document_topics, gensim_corpus))
@@ -80,16 +78,16 @@ def get_theta(
 
 
 def get_top_docs(
+        docs: Sequence,
         model: object = None,
         theta: ndarray = None,
         gensim_corpus: Optional[List] = None,
-        docs: Optional[Sequence] = None,
         docs_num: int = 20,
         topics_idx: Sequence[Any] = None) -> DataFrame:
     if not any(model, theta):
         raise ValueError("Please pass a model or a theta matrix to function")
 
-    if model:
+    if model and not theta:
         theta = get_theta(model, gensim_corpus=gensim_corpus)
 
     def _select_docs(docs, theta, topic_id: int):
@@ -139,8 +137,7 @@ def calc_terms_marg_probs(
 def get_salient_terms(
         terms_freqs: ndarray,
         phi: ndarray,
-        theta: ndarray,
-        ):
+        theta: ndarray) -> ndarray:
     p_t = array(calc_topics_marg_probs(theta))
     p_w = array(calc_terms_marg_probs(phi))
 
