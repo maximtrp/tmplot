@@ -1,4 +1,5 @@
-# TODO: interactive topic model report: scatter plot of topics, top words/docs in topic (number is controlled interactively)
+# TODO: interactive topic model report: scatter plot of topics,
+#       top words/docs in topic (number is controlled interactively)
 # TODO: heatmap of docs in topics
 # TODO: topic dynamics in time
 # TODO: word cloud
@@ -6,26 +7,30 @@ from typing import Union, Sequence
 from pandas import DataFrame, option_context
 from numpy import ndarray
 from altair import (
-    Chart, X, Y, Size, Color, Tooltip, value, Text, Scale, Legend)
+    Chart, X, Y, Size, Color, value, Text, Scale, Legend)
 
 
 def plot_scatter_topics(
         topics_coords: Union[ndarray, DataFrame],
         x_col: str = "x",
         y_col: str = "y",
+        topic_id: int = None,
         size_col: str = None,
         label_col: str = None,
         color_col: str = None,
         topic_col: str = None,
-        font_size: int = 12,
+        font_size: int = 13,
         x_kws: dict = None,
         y_kws: dict = None,
+        chart_kws: dict = None,
         circle_kws: dict = None,
         circle_enc_kws: dict = None,
         text_kws: dict = None,
         text_enc_kws: dict = None,
         size_kws: dict = None,
         color_kws: dict = None) -> Chart:
+    if not chart_kws:
+        chart_kws = {}
 
     if not x_kws:
         x_kws = {'shorthand': x_col, 'axis': None}
@@ -50,15 +55,11 @@ def plot_scatter_topics(
     if not text_kws:
         text_kws = {"align": "center", "baseline": "middle"}
 
-    if not text_enc_kws:
-        text_enc_kws = {
-            "x": X(**x_kws),
-            "y": Y(**y_kws),
-            "text": Text(topic_col),
-            "size": value(font_size)}
-
     if not color_kws:
-        color_kws = {}
+        color_kws = {}\
+            if not topic_id\
+            else {'condition': {
+                "test": f"datum['topic'] == {topic_id}", "value": "red"}}
 
     data = DataFrame(topics_coords, columns=[x_col, y_col])\
         if isinstance(topics_coords, ndarray)\
@@ -68,13 +69,27 @@ def plot_scatter_topics(
         topic_col = "topic"
         data = data.assign(**{topic_col: range(1, len(topics_coords) + 1)})
 
-    if label_col:
-        circle_enc_kws.update({'tooltip': Tooltip(label_col, **size_kws)})
-        text_enc_kws.update({'tooltip': Tooltip(label_col, **size_kws)})
-    if color_col:
-        circle_enc_kws.update({'color': Color(color_col, **color_kws)})
+    if not text_enc_kws:
+        text_enc_kws = {
+            "x": X(**x_kws),
+            "y": Y(**y_kws),
+            "text": Text(topic_col),
+            "size": value(font_size)}
 
-    base = Chart(data)
+    # Tooltips initialization
+    tooltips = []
+    if label_col:
+        tooltips.append(label_col)
+    if size_col:
+        tooltips.append(size_col)
+
+    if tooltips:
+        circle_enc_kws.update({'tooltip': tooltips})
+        text_enc_kws.update({'tooltip': tooltips})
+
+    circle_enc_kws.update({'color': Color(**color_kws)})
+
+    base = Chart(data, **chart_kws)
 
     rule = base\
         .mark_rule()\
@@ -112,25 +127,33 @@ def plot_terms(
         x_col: str = 'Probability',
         y_col: str = 'Terms',
         color_col: str = 'Type',
-        font_size: int = 12,
-        chart_kws: dict = {},
-        bar_kws: dict = {},
-        x_kws: dict = {},
-        y_kws: dict = {},
-        color_kws: dict = {}) -> Chart:
-    x_kws.setdefault('stack', None)
-    y_kws.setdefault('sort', None)
-    y_kws.setdefault('title', None)
-    # bar_kws.setdefault('opacity', 1)
-    color_kws.setdefault('legend', Legend(orient='bottom'))
-    color_kws.setdefault('scale', Scale(scheme='category20'))
+        font_size: int = 13,
+        chart_kws: dict = None,
+        bar_kws: dict = None,
+        x_kws: dict = None,
+        y_kws: dict = None,
+        color_kws: dict = None) -> Chart:
+    if not x_kws:
+        x_kws = {'stack': None}
+    if not y_kws:
+        y_kws = {'sort': None, 'title': None}
+    if not color_kws:
+        color_kws = {
+            'shorthand': color_col,
+            'legend': Legend(orient='bottom'),
+            'scale': Scale(scheme='category20')
+        }
+    if not chart_kws:
+        chart_kws = {}
+    if not bar_kws:
+        bar_kws = {}
 
-    return Chart(terms_probs, **chart_kws)\
+    return Chart(data=terms_probs, **chart_kws)\
         .mark_bar(**bar_kws)\
         .encode(
             x=X(x_col, **x_kws),
             y=Y(y_col, **y_kws),
-            color=Color(color_col, **color_kws)
+            color=Color(**color_kws)
         )\
         .configure_axis(labelFontSize=font_size, titleFontSize=font_size)\
         .configure_legend(labelFontSize=font_size, titleFontSize=font_size)

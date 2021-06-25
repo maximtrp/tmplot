@@ -1,7 +1,9 @@
 __all__ = [
-    'get_phi', 'get_theta', 'get_relevant_terms', 'get_salient_terms',
+    'get_phi', 'get_theta',
+    'get_relevant_terms', 'get_salient_terms',
+    'get_docs', 'get_top_docs',
     'calc_terms_marg_probs', 'calc_topics_marg_probs']
-from typing import Union, Optional, Sequence, List, Any
+from typing import Union, Optional, Sequence, List
 from functools import partial
 from math import log
 from numpy import ndarray, zeros, argsort, array, arange, vstack
@@ -77,27 +79,38 @@ def get_theta(
     return theta
 
 
+def get_docs(
+        model: object) -> List[str]:
+    if _is_tomotopy(model):
+        docs_raw = map(lambda x: x.words, model.docs)
+        return list(
+            map(
+                lambda doc: " ".join(map(lambda x: model.vocabs[x], doc)),
+                docs_raw))
+    return None
+
+
 def get_top_docs(
         docs: Sequence,
         model: object = None,
         theta: ndarray = None,
         gensim_corpus: Optional[List] = None,
         docs_num: int = 20,
-        topics_idx: Sequence[Any] = None) -> DataFrame:
-    if not any(model, theta):
+        topics_idx: Sequence[int] = None) -> DataFrame:
+    if all([model is None, theta is None]):
         raise ValueError("Please pass a model or a theta matrix to function")
 
     if model and not theta:
-        theta = get_theta(model, gensim_corpus=gensim_corpus)
+        theta = get_theta(model, gensim_corpus=gensim_corpus).values
 
     def _select_docs(docs, theta, topic_id: int):
-        probs = theta[:, topic_id]
+        probs = theta[topic_id, :]
         idx = argsort(probs)[:-docs_num-1:-1]
-        result = Series(array(docs)[idx])
+        result = Series(list(map(lambda x: docs[x], idx)))
         result.name = 'topic{}'.format(topic_id)
         return result
 
-    topics_num = theta.shape[1]
+    topics_num = theta.shape[0]
     topics_idx = arange(topics_num) if topics_idx is None else topics_idx
     return concat(
         map(lambda x: _select_docs(docs, theta, x), topics_idx), axis=1)
@@ -150,21 +163,30 @@ def get_salient_terms(
             for t in range(phi.shape[1])])
         for w in range(phi.shape[0])
     ])
-    # saliency(term w) = frequency(w) * [sum_t p(t | w) * log(p(t | w)/p(t))] for topics t
+    # saliency(term w) = frequency(w)
+    # * [sum_t p(t | w) * log(p(t | w)/p(t))] for topics t
     # p(t | w) = p(w | t) * p(t) / p(w)
     return saliency
 
 
 def calc_terms_probs_ratio(
         phi: DataFrame,
-        topic: Union[str, int],
+        topic: int,
         terms_num: int = 30,
         lambda_: float = 0.3):
-    terms_probs = concat((
-        phi.sum(axis=1).rename('Marginal term probability, p(w)'),
-        phi.loc[:, topic].rename('Conditional term probability, p(w|t)')
-        ), axis=1)
+    p_cond_name = 'Conditional term probability, p(w|t)'
+    p_cond = phi.iloc[:, topic]\
+        .rename(p_cond_name)\
+        if isinstance(phi, DataFrame)\
+        else Series(phi[:, topic], name=p_cond_name)
 
+    p_marg_name = 'Marginal term probability, p(w)'
+    p_marg = phi.sum(axis=1)\
+        .rename(p_marg_name)\
+        if isinstance(phi, DataFrame)\
+        else Series(phi[:, topic], name=p_marg_name)
+
+    terms_probs = concat((p_marg, p_cond), axis=1)
     relevant_idx = get_relevant_terms(phi, topic, lambda_).index
     terms_probs_slice = terms_probs.loc[relevant_idx].head(terms_num)
 
@@ -176,7 +198,7 @@ def calc_terms_probs_ratio(
 
 def get_relevant_terms(
         phi: Union[ndarray, DataFrame],
-        topic: Union[str, int],
+        topic: int,
         lambda_: float = 0.3) -> Series:
     """[summary]
 
@@ -194,7 +216,10 @@ def get_relevant_terms(
     Series
         [description]
     """
+    phi_topic = phi.iloc[:, topic]\
+        if isinstance(phi, DataFrame)\
+        else phi[:, topic]
     # relevance = lambda * p(w | t) + (1 - lambda) * p(w | t)/p(w)
-    relevance = lambda_ * phi.loc[:, topic]\
-        + (1 - lambda_) * phi.loc[:, topic] / phi.sum(axis=1)
+    relevance = lambda_ * phi_topic\
+        + (1 - lambda_) * phi_topic / phi.sum(axis=1)
     return relevance.sort_values(ascending=False)
