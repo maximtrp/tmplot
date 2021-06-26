@@ -95,8 +95,8 @@ def get_top_docs(
         model: object = None,
         theta: ndarray = None,
         gensim_corpus: Optional[List] = None,
-        docs_num: int = 20,
-        topics_idx: Sequence[int] = None) -> DataFrame:
+        docs_num: int = 5,
+        topics: Sequence[int] = None) -> DataFrame:
     if all([model is None, theta is None]):
         raise ValueError("Please pass a model or a theta matrix to function")
 
@@ -111,7 +111,7 @@ def get_top_docs(
         return result
 
     topics_num = theta.shape[0]
-    topics_idx = arange(topics_num) if topics_idx is None else topics_idx
+    topics_idx = arange(topics_num) if topics is None else topics
     return concat(
         map(lambda x: _select_docs(docs, theta, x), topics_idx), axis=1)
 

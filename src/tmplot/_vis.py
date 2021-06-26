@@ -14,7 +14,7 @@ def plot_scatter_topics(
         topics_coords: Union[ndarray, DataFrame],
         x_col: str = "x",
         y_col: str = "y",
-        topic_id: int = None,
+        topic: int = None,
         size_col: str = None,
         label_col: str = None,
         color_col: str = None,
@@ -57,9 +57,9 @@ def plot_scatter_topics(
 
     if not color_kws:
         color_kws = {}\
-            if not topic_id\
+            if not topic\
             else {'condition': {
-                "test": f"datum['topic'] == {topic_id}", "value": "red"}}
+                "test": f"datum['topic'] == {topic}", "value": "red"}}
 
     data = DataFrame(topics_coords, columns=[x_col, y_col])\
         if isinstance(topics_coords, ndarray)\
@@ -87,7 +87,8 @@ def plot_scatter_topics(
         circle_enc_kws.update({'tooltip': tooltips})
         text_enc_kws.update({'tooltip': tooltips})
 
-    circle_enc_kws.update({'color': Color(**color_kws)})
+    if color_kws:
+        circle_enc_kws.update({'color': Color(**color_kws)})
 
     base = Chart(data, **chart_kws)
 
@@ -156,7 +157,9 @@ def plot_terms(
             color=Color(**color_kws)
         )\
         .configure_axis(labelFontSize=font_size, titleFontSize=font_size)\
-        .configure_legend(labelFontSize=font_size, titleFontSize=font_size)
+        .configure_legend(
+            labelFontSize=font_size, titleFontSize=font_size,
+            columns=1, labelLimit=250)
 
 
 def plot_docs(
@@ -166,7 +169,7 @@ def plot_docs(
     from IPython.display import HTML
 
     if styles is None:
-        styles = '<style>.plot{font-size: 1.1em !important;}' +\
+        styles = '<style>.plot{font-size: 0.95em !important;}' +\
             'table td{text-align: left !important}' +\
             'table th{text-align: center !important}</style>'
     if html_kws is None:
