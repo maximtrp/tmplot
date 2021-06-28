@@ -3,6 +3,8 @@
 # TODO: heatmap of docs in topics
 # TODO: topic dynamics in time
 # TODO: word cloud
+__all__ = [
+    'plot_scatter_topics', 'plot_terms', 'plot_docs']
 from typing import Union, Sequence
 from pandas import DataFrame, option_context
 from numpy import ndarray
@@ -29,6 +31,52 @@ def plot_scatter_topics(
         text_enc_kws: dict = None,
         size_kws: dict = None,
         color_kws: dict = None) -> Chart:
+    """[summary]
+
+    Parameters
+    ----------
+    topics_coords : Union[ndarray, DataFrame]
+        [description]
+    x_col : str, optional
+        [description], by default "x"
+    y_col : str, optional
+        [description], by default "y"
+    topic : int, optional
+        [description], by default None
+    size_col : str, optional
+        [description], by default None
+    label_col : str, optional
+        [description], by default None
+    color_col : str, optional
+        [description], by default None
+    topic_col : str, optional
+        [description], by default None
+    font_size : int, optional
+        [description], by default 13
+    x_kws : dict, optional
+        [description], by default None
+    y_kws : dict, optional
+        [description], by default None
+    chart_kws : dict, optional
+        [description], by default None
+    circle_kws : dict, optional
+        [description], by default None
+    circle_enc_kws : dict, optional
+        [description], by default None
+    text_kws : dict, optional
+        [description], by default None
+    text_enc_kws : dict, optional
+        [description], by default None
+    size_kws : dict, optional
+        [description], by default None
+    color_kws : dict, optional
+        [description], by default None
+
+    Returns
+    -------
+    Chart
+        [description]
+    """
     if not chart_kws:
         chart_kws = {}
 
@@ -57,7 +105,7 @@ def plot_scatter_topics(
 
     if not color_kws:
         color_kws = {}\
-            if not topic\
+            if topic is None\
             else {'condition': {
                 "test": f"datum['topic'] == {topic}", "value": "red"}}
 
@@ -67,7 +115,7 @@ def plot_scatter_topics(
 
     if not topic_col:
         topic_col = "topic"
-        data = data.assign(**{topic_col: range(1, len(topics_coords) + 1)})
+        data = data.assign(**{topic_col: range(len(topics_coords))})
 
     if not text_enc_kws:
         text_enc_kws = {
@@ -134,6 +182,36 @@ def plot_terms(
         x_kws: dict = None,
         y_kws: dict = None,
         color_kws: dict = None) -> Chart:
+    """[summary]
+
+    Parameters
+    ----------
+    terms_probs : DataFrame
+        [description]
+    x_col : str, optional
+        [description], by default 'Probability'
+    y_col : str, optional
+        [description], by default 'Terms'
+    color_col : str, optional
+        [description], by default 'Type'
+    font_size : int, optional
+        [description], by default 13
+    chart_kws : dict, optional
+        [description], by default None
+    bar_kws : dict, optional
+        [description], by default None
+    x_kws : dict, optional
+        [description], by default None
+    y_kws : dict, optional
+        [description], by default None
+    color_kws : dict, optional
+        [description], by default None
+
+    Returns
+    -------
+    Chart
+        [description]
+    """
     if not x_kws:
         x_kws = {'stack': None}
     if not y_kws:
@@ -166,14 +244,30 @@ def plot_docs(
         docs: Union[Sequence[str], DataFrame],
         styles: dict = None,
         html_kws: dict = None) -> DataFrame:
+    """[summary]
+
+    Parameters
+    ----------
+    docs : Union[Sequence[str], DataFrame]
+        [description]
+    styles : dict, optional
+        [description], by default None
+    html_kws : dict, optional
+        [description], by default None
+
+    Returns
+    -------
+    DataFrame
+        [description]
+    """
     from IPython.display import HTML
 
     if styles is None:
-        styles = '<style>.plot{font-size: 0.95em !important;}' +\
-            'table td{text-align: left !important}' +\
+        styles = '<style>table td{text-align: left !important}' +\
             'table th{text-align: center !important}</style>'
     if html_kws is None:
-        html_kws = {'classes': 'plot'}
+        # html_kws = {'classes': 'plot'}
+        html_kws = {}
 
     if isinstance(docs, DataFrame):
         df_docs = docs.copy()

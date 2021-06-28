@@ -18,8 +18,20 @@ from bitermplus._btm import BTM
 def get_phi(
         model: object,
         vocabulary: Optional[Sequence] = None) -> DataFrame:
-    """Returns topics (T) vs words (W) matrix of shape (T, W)."""
+    """Returns topics (T) vs words (W) matrix of shape (T, W).
 
+    Parameters
+    ----------
+    model : object
+        [description]
+    vocabulary : Optional[Sequence], optional
+        [description], by default None
+
+    Returns
+    -------
+    DataFrame
+        [description]
+    """
     if _is_tomotopy(model):
 
         # Topics vs words distributions
@@ -33,13 +45,16 @@ def get_phi(
 
     elif _is_gensim(model):
 
-        twd = DataFrame(model.get_topics().T)
+        phi = DataFrame(model.get_topics().T)
         if vocabulary:
-            twd.index = vocabulary
+            phi.index = vocabulary
 
     elif _is_btmplus(model):
-        twd = model.df_words_topics_
-        pass
+        phi = model.df_words_topics_
+
+    if isinstance(phi, DataFrame):
+        phi.index.name = 'words'
+        phi.columns.name = 'topics'
 
     return phi
 
@@ -60,27 +75,62 @@ def _is_btmplus(model: object) -> bool:
 
 def get_theta(
         model: object,
-        gensim_corpus: Optional[List] = None) -> DataFrame:
+        corpus: Optional[List] = None) -> DataFrame:
+    """[summary]
+
+    Parameters
+    ----------
+    model : object
+        [description]
+    corpus : Optional[List], optional
+        [description], by default None
+
+    Returns
+    -------
+    DataFrame
+        [description]
+    """
+    theta = None
 
     if _is_tomotopy(model):
         tdd = list(map(lambda x: x.get_topic_dist(), model.docs))
         theta = DataFrame(vstack(tdd).T)
 
     elif _is_gensim(model):
-        tdd = list(map(model.get_document_topics, gensim_corpus))
+        if corpus is None:
+            raise ValueError(
+                '`corpus` must be supplied for a gensim model')
+        tdd = list(map(model.get_document_topics, corpus))
         theta = DataFrame(zeros((len(tdd), model.num_topics)))
         for doc_id, doc_topic in enumerate(tdd):
             for topic_id, topic_prob in doc_topic:
                 theta.loc[doc_id, topic_id] = topic_prob
+        theta = theta.T
 
     elif _is_btmplus(model):
         theta = DataFrame(model.matrix_topics_docs_)
+
+    if isinstance(theta, DataFrame):
+        theta.index.name = 'topics'
+        theta.columns.name = 'docs'
 
     return theta
 
 
 def get_docs(
         model: object) -> List[str]:
+    """[summary]
+
+    Parameters
+    ----------
+    model : object
+        [description]
+
+    Returns
+    -------
+    List[str]
+        [description]
+    """
     if _is_tomotopy(model):
         docs_raw = map(lambda x: x.words, model.docs)
         return list(
@@ -94,14 +144,41 @@ def get_top_docs(
         docs: Sequence,
         model: object = None,
         theta: ndarray = None,
-        gensim_corpus: Optional[List] = None,
+        corpus: Optional[List] = None,
         docs_num: int = 5,
         topics: Sequence[int] = None) -> DataFrame:
+    """[summary]
+
+    Parameters
+    ----------
+    docs : Sequence
+        [description]
+    model : object, optional
+        [description], by default None
+    theta : ndarray, optional
+        [description], by default None
+    corpus : Optional[List], optional
+        [description], by default None
+    docs_num : int, optional
+        [description], by default 5
+    topics : Sequence[int], optional
+        [description], by default None
+
+    Returns
+    -------
+    DataFrame
+        [description]
+
+    Raises
+    ------
+    ValueError
+        [description]
+    """
     if all([model is None, theta is None]):
         raise ValueError("Please pass a model or a theta matrix to function")
 
     if model and not theta:
-        theta = get_theta(model, gensim_corpus=gensim_corpus).values
+        theta = get_theta(model, corpus=corpus).values
 
     def _select_docs(docs, theta, topic_id: int):
         probs = theta[topic_id, :]
@@ -120,7 +197,13 @@ def calc_topics_marg_probs(
         theta: Union[DataFrame, ndarray],
         topic_id: int = None):
     """Calculate marginal topics probabilities"""
-    return theta[topic_id, :].sum() if topic_id else theta.sum(axis=1)
+    if topic_id:
+        if isinstance(theta, ndarray):
+            return theta[topic_id, :].sum()
+        elif isinstance(theta, DataFrame):
+            return theta.iloc[topic_id, :].sum()
+    else:
+        return theta.sum(axis=1)
 
 
 def calc_terms_marg_probs(
@@ -132,6 +215,8 @@ def calc_terms_marg_probs(
     ----------
     phi : Union[ndarray, DataFrame]
         Words vs topics matrix (W x T).
+    word_id: Optional[int]
+        Word identifier.
 
     Returns
     -------
@@ -151,6 +236,22 @@ def get_salient_terms(
         terms_freqs: ndarray,
         phi: ndarray,
         theta: ndarray) -> ndarray:
+    """[summary]
+
+    Parameters
+    ----------
+    terms_freqs : ndarray
+        [description]
+    phi : ndarray
+        [description]
+    theta : ndarray
+        [description]
+
+    Returns
+    -------
+    ndarray
+        [description]
+    """
     p_t = array(calc_topics_marg_probs(theta))
     p_w = array(calc_terms_marg_probs(phi))
 
@@ -173,7 +274,25 @@ def calc_terms_probs_ratio(
         phi: DataFrame,
         topic: int,
         terms_num: int = 30,
-        lambda_: float = 0.3):
+        lambda_: float = 0.6):
+    """[summary]
+
+    Parameters
+    ----------
+    phi : DataFrame
+        [description]
+    topic : int
+        [description]
+    terms_num : int, optional
+        [description], by default 30
+    lambda_ : float, optional
+        [description], by default 0.6
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     p_cond_name = 'Conditional term probability, p(w|t)'
     p_cond = phi.iloc[:, topic]\
         .rename(p_cond_name)\
@@ -199,22 +318,22 @@ def calc_terms_probs_ratio(
 def get_relevant_terms(
         phi: Union[ndarray, DataFrame],
         topic: int,
-        lambda_: float = 0.3) -> Series:
-    """[summary]
+        lambda_: float = 0.6) -> Series:
+    """Select relevant terms.
 
     Parameters
     ----------
     phi : Union[np.ndarray, DataFrame]
-        [description]
+        Words vs topics matrix (phi).
     topic : int
-        [description]
-    lambda_ : float, optional
-        [description], by default 0.3
+        Topic index.
+    lambda_ : float = 0.6
+        Lambda value.
 
     Returns
     -------
     Series
-        [description]
+        Terms sorted by relevance (descendingly).
     """
     phi_topic = phi.iloc[:, topic]\
         if isinstance(phi, DataFrame)\

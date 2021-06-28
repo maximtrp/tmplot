@@ -1,10 +1,11 @@
+__all__ = ['prepare_coords', 'report']
 from typing import Optional, Sequence, List
 from ipywidgets import widgets as wdg
 from pandas import DataFrame
-from _distance import get_topics_dist, get_topics_scatter
-from _vis import plot_scatter_topics, plot_terms, plot_docs
-from _helpers import (
-    calc_terms_probs_ratio, calc_topics_marg_probs,
+from ._distance import get_topics_dist, get_topics_scatter
+from ._vis import plot_scatter_topics, plot_terms, plot_docs
+from ._helpers import (
+    calc_terms_probs_ratio,
     get_phi, get_theta,
     get_top_docs)
 from copy import deepcopy
@@ -21,6 +22,8 @@ def prepare_coords(
     ----------
     model : object
         [description]
+    labels : Optional[Sequence]
+
     dist_kws : dict, optional
         [description], by default None
     scatter_kws : dict, optional
@@ -34,10 +37,10 @@ def prepare_coords(
     phi = get_phi(model)
     theta = get_theta(model)
     topics_dists = get_topics_dist(phi, **dist_kws)
-    topics_marg_prob_sum = calc_topics_marg_probs(theta)
+    # topics_marg_prob_sum = calc_topics_marg_probs(theta)
     topics_coords = get_topics_scatter(topics_dists, theta, **scatter_kws)
-    topics_coords['size'] = (topics_marg_prob_sum
-                             / topics_marg_prob_sum.sum() * 100).round(2)
+    # topics_coords['size'] = (topics_marg_prob_sum
+    #  / topics_marg_prob_sum.sum() * 100).round(2)
     topics_coords['label'] = labels or theta.index
     return topics_coords
 
@@ -57,7 +60,47 @@ def report(
         coords_kws: dict = None,
         words_kws: dict = None,
         docs_kws: dict = None,
-        top_docs_kws: dict = None) -> wdg.GridBox:
+        top_docs_kws: dict = None) -> wdg.VBox:
+    """[summary]
+
+    Parameters
+    ----------
+    model : object, optional
+        [description], by default None
+    docs : Optional[Sequence], optional
+        [description], by default None
+    topics_labels : Optional[Sequence], optional
+        [description], by default None
+    vocab : Optional[Sequence], optional
+        [description], by default None
+    gensim_corpus : Optional[List], optional
+        [description], by default None
+    layout : wdg.Layout, optional
+        [description], by default None
+    show_headers : bool, optional
+        [description], by default True
+    show_docs : bool, optional
+        [description], by default True
+    show_words : bool, optional
+        [description], by default True
+    show_topics : bool, optional
+        [description], by default True
+    topics_kws : dict, optional
+        [description], by default None
+    coords_kws : dict, optional
+        [description], by default None
+    words_kws : dict, optional
+        [description], by default None
+    docs_kws : dict, optional
+        [description], by default None
+    top_docs_kws : dict, optional
+        [description], by default None
+
+    Returns
+    -------
+    wdg.GridBox
+        [description]
+    """
     from IPython.display import display
 
     _topics_kws = {'chart_kws': {'height': 600, 'width': 350}}\
@@ -92,7 +135,8 @@ def report(
         _topics_kws.update({
             'topics_coords': topics_coords,
             'label_col': 'label',
-            'size_col': 'size'
+            'size_col': 'size',
+            'topic': 0
         })
 
     if 'terms_probs' not in _words_kws:
@@ -111,6 +155,9 @@ def report(
     # Topic selection
     def _on_select_topic(sel):
         topic = sel['new']
+        topics_plot_output.clear_output(wait=False)
+        words_plot_output.clear_output(wait=False)
+        docs_plot_output.clear_output(wait=False)
         with words_plot_output:
             terms_probs = calc_terms_probs_ratio(phi, topic=topic)
             _words_kws.update({'terms_probs': terms_probs})
@@ -147,7 +194,6 @@ def report(
     if show_topics:
         topics_plot_children = [topics_header] if show_headers else []
         options_methods = [
-            ('Fruchterman-Reingold force-directed algorithm', 'graph'),
             ('TSNE', 'tsne'),
             ('SpectralEmbedding', 'sem'),
             ('MDS', 'mds'),
@@ -157,7 +203,7 @@ def report(
         topics_method_header = wdg.HTML('Select a method:')
         topics_method = wdg.Dropdown(
             options=options_methods,
-            value='graph',
+            value='tsne',
         )
         topics_method_widget = wdg.HBox([topics_method_header, topics_method])
         topics_method.observe(_on_select_topics_method, names='value')
@@ -181,15 +227,15 @@ def report(
                 display(plot_terms(**_words_kws))
 
         lambda_slider = wdg.FloatSlider(
-            value=0.3,
-            min=0,
+            value=0.6,
+            min=0.0,
             max=1.0,
             step=0.01,
             description='',
             continuous_update=False,
             orientation='horizontal',
             readout=True,
-            readout_format='.1f',
+            readout_format='.2f',
         )
         lambda_slider.observe(_on_select_lambda, names='value')
         lambda_slider_header = wdg.HTML('Lambda value:')
@@ -238,9 +284,8 @@ def report(
         children.append(docs_widget)
 
     grid_box = wdg.GridBox(children, layout=layout)
-    hr = wdg.HTML('<hr style="height:1px;border:none;color:#333;background-color:#333;" />')
     app = wdg.VBox(
-        [select_topic_widget, hr, grid_box],
+        [select_topic_widget, grid_box],
         layout={'align_items': 'center'})
 
     return app

@@ -1,15 +1,16 @@
 # TODO: top docs in topic
 # TODO: stable topics
+__all__ = [
+    'get_topics_dist', 'get_topics_scatter', 'get_top_topic_words']
 from typing import Union, List
 from itertools import combinations
 from pandas import DataFrame
 import numpy as np
 from scipy.special import kl_div
 from scipy.spatial import distance
-from networkx import from_numpy_matrix, spring_layout
 from sklearn.manifold import (
     TSNE, Isomap, LocallyLinearEmbedding, MDS, SpectralEmbedding)
-from _helpers import calc_topics_marg_probs
+from ._helpers import calc_topics_marg_probs
 
 
 def _dist_klb(a1: np.ndarray, a2: np.ndarray):
@@ -53,7 +54,7 @@ def _dist_jac(a1: np.ndarray, a2: np.ndarray,  top_words=100):
     b = np.argsort(a2)[:-top_words-1:-1]
     j_num = np.intersect1d(a, b, assume_unique=False).size
     j_den = np.union1d(a, b).size
-    jac_val = j_num / j_den
+    jac_val = 1 - j_num / j_den
     return jac_val
 
 
@@ -112,16 +113,16 @@ def get_topics_dist(
     return topics_dists
 
 
-def _compute_graph_layout(matrix: np.ndarray, method_kws: dict = {}):
-    g = from_numpy_matrix(matrix)
-    layout = spring_layout(g, **method_kws)
-    return np.array(list(layout.values()))
+# def _compute_graph_layout(matrix: np.ndarray, method_kws: dict = {}):
+#     g = from_numpy_matrix(matrix.max() - matrix)
+#     layout = spring_layout(g, **method_kws)
+#     return np.array(list(layout.values()))
 
 
 def get_topics_scatter(
         topic_dists: np.ndarray,
         theta: np.ndarray,
-        method: str = 'graph',
+        method: str = 'tsne',
         method_kws: dict = None) -> DataFrame:
     """Calculating topics coordinates for a scatterplot.
 
@@ -135,45 +136,39 @@ def get_topics_scatter(
         Method to calculate topics scatter coordinates (X and Y).
     method_kws : dict = None
         Keyword arguments passed to method function. Possible values:
-        1) 'graph' - Fruchterman-Reingold force-directed algorithm.
-        2) 'tsne' - TSNE.
+        1) 'tsne' - TSNE.
         2) 'sem' - SpectralEmbedding.
-        2) 'mds' - MDS.
-        2) 'lle' - LocallyLinearEmbedding.
-        6) 'isomap' - Isomap.
+        3) 'mds' - MDS.
+        4) 'lle' - LocallyLinearEmbedding.
+        5) 'isomap' - Isomap.
     """
     if not method_kws:
-        method_kws = {}
+        method_kws = {'n_components': 2}
 
-    if method == 'graph':
-        coords = _compute_graph_layout(topic_dists, **method_kws)
-    else:
-        method_kws.setdefault('n_components', 2)
+    if method == 'tsne':
+        method_kws.setdefault('metric',  'precomputed')
+        transformer = TSNE(**method_kws)
 
-        if method == 'tsne':
-            method_kws.setdefault('metric',  'precomputed')
-            transformer = TSNE(**method_kws)
+    elif method == 'sem':
+        method_kws.setdefault('affinity', 'precomputed')
+        transformer = SpectralEmbedding(**method_kws)
 
-        elif method == 'sem':
-            method_kws.setdefault('affinity', 'precomputed')
-            transformer = SpectralEmbedding(**method_kws)
+    elif method == 'mds':
+        method_kws.setdefault('dissimilarity', 'precomputed')
+        transformer = MDS(**method_kws)
 
-        elif method == 'mds':
-            method_kws.setdefault('dissimilarity', 'precomputed')
-            transformer = MDS(**method_kws)
+    elif method == 'lle':
+        transformer = LocallyLinearEmbedding(**method_kws)
 
-        elif method == 'lle':
-            transformer = LocallyLinearEmbedding(**method_kws)
+    elif method == 'isomap':
+        transformer = Isomap(**method_kws)
 
-        elif method == 'isomap':
-            transformer = Isomap(**method_kws)
-
-        coords = transformer.fit_transform(topic_dists)
+    coords = transformer.fit_transform(topic_dists)
 
     topics_xy = DataFrame(coords, columns=['x', 'y'])
     topics_xy['topic'] = topics_xy.index.astype(int)
     topics_xy['size'] = calc_topics_marg_probs(theta)
-
+    topics_xy['size'] *= (100 / topics_xy['size'].sum())
     return topics_xy
 
 
