@@ -47,10 +47,10 @@ def prepare_coords(
 
 def report(
         model: object = None,
-        docs: Optional[Sequence] = None,
-        topics_labels: Optional[Sequence] = None,
-        vocab: Optional[Sequence] = None,
-        gensim_corpus: Optional[List] = None,
+        docs: Optional[Sequence[str]] = None,
+        topics_labels: Optional[Sequence[str]] = None,
+        vocab: Optional[Sequence[str]] = None,
+        corpus: Optional[List] = None,
         layout: wdg.Layout = None,
         show_headers: bool = True,
         show_docs: bool = True,
@@ -61,45 +61,45 @@ def report(
         words_kws: dict = None,
         docs_kws: dict = None,
         top_docs_kws: dict = None) -> wdg.VBox:
-    """[summary]
+    """Interactive report interface.
 
     Parameters
     ----------
     model : object, optional
-        [description], by default None
-    docs : Optional[Sequence], optional
-        [description], by default None
-    topics_labels : Optional[Sequence], optional
-        [description], by default None
-    vocab : Optional[Sequence], optional
-        [description], by default None
-    gensim_corpus : Optional[List], optional
-        [description], by default None
+        Topic model instance.
+    docs : Optional[Sequence[str]], optional
+        Documents.
+    topics_labels : Optional[Sequence[str]], optional
+        Topics labels.
+    vocab : Optional[Sequence[str]], optional
+        Vocabulary as a list of words.
+    corpus : Optional[List[str]], optional
+        Gensim corpus.
     layout : wdg.Layout, optional
-        [description], by default None
+        Interface layout instance.
     show_headers : bool, optional
-        [description], by default True
+        Show headers.
     show_docs : bool, optional
-        [description], by default True
+        Show documents widget.
     show_words : bool, optional
-        [description], by default True
+        Show words widget.
     show_topics : bool, optional
-        [description], by default True
+        Show topics scatter plot widget.
     topics_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`tmplot.plot_scatter_topics()`.
     coords_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`tmplot.prepare_coords()`.
     words_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`tmplot.plot_terms()`.
     docs_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`tmplot.plot_docs()`.
     top_docs_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`tmplot.get_top_docs()`.
 
     Returns
     -------
-    wdg.GridBox
-        [description]
+    wdg.VBox
+        Report interface as a VBox instance.
     """
     from IPython.display import display
 
@@ -145,7 +145,7 @@ def report(
         _words_kws.update({'terms_probs': terms_probs})
 
     if 'docs' not in _docs_kws:
-        theta = get_theta(model, gensim_corpus=gensim_corpus).values
+        theta = get_theta(model, corpus=corpus).values
         _top_docs_kws.update({
             'docs': docs, 'theta': theta,
             'topics': [0], 'docs_num': 2})
