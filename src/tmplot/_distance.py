@@ -67,7 +67,7 @@ def get_topics_dist(
     Parameters
     ----------
     phi : Union[ndarray, DataFrame]
-        Sequence of words vs topics matrices (W x T).
+        Words vs topics matrix (W x T).
     method : str = "sklb"
         Comparison method. Possible variants:
         1) "klb" - Kullback-Leibler divergence.
@@ -84,9 +84,6 @@ def get_topics_dist(
     -------
     numpy.ndarray
         Topics distances matrix.
-
-    Example
-    -------
     """
     phi_copy = np.array(phi)
     topics_num = phi_copy.shape[1]
@@ -113,18 +110,12 @@ def get_topics_dist(
     return topics_dists
 
 
-# def _compute_graph_layout(matrix: np.ndarray, method_kws: dict = {}):
-#     g = from_numpy_matrix(matrix.max() - matrix)
-#     layout = spring_layout(g, **method_kws)
-#     return np.array(list(layout.values()))
-
-
 def get_topics_scatter(
         topic_dists: np.ndarray,
         theta: np.ndarray,
         method: str = 'tsne',
         method_kws: dict = None) -> DataFrame:
-    """Calculating topics coordinates for a scatterplot.
+    """Calculate topics coordinates for a scatter plot.
 
     Parameters
     ----------
@@ -141,6 +132,11 @@ def get_topics_scatter(
         3) 'mds' - MDS.
         4) 'lle' - LocallyLinearEmbedding.
         5) 'isomap' - Isomap.
+
+    Returns
+    -------
+    DataFrame
+        Topics scatter coordinates.
     """
     if not method_kws:
         method_kws = {'n_components': 2}
@@ -181,20 +177,17 @@ def get_top_topic_words(
     Parameters
     ----------
     phi : DataFrame
-        Words vs topics matrix with words as indices and topics as columns.
+        Words vs topics matrix (phi) with words as
+        indices and topics as columns.
     words_num : int = 20
         The number of words to select.
     topics_idx : Union[List, numpy.ndarray] = None
-        Topics indices. Meant to be used to select only stable
-        topics.
+        Topics indices.
 
     Returns
     -------
     DataFrame
-        Words with highest probabilities in all selected topics.
-
-    Example
-    -------
+        Words with highest probabilities in all (or selected) topics.
     """
     return phi.loc[:, topics_idx or phi.columns]\
         .apply(
@@ -202,48 +195,3 @@ def get_top_topic_words(
             .sort_values(ascending=False)
             .head(words_num).index, axis=0
         )
-
-
-# def get_top_topic_docs(
-#         docs: Union[List[str], np.ndarray],
-#         p_zd: np.ndarray,
-#         docs_num: int = 20,
-#         topics_idx: Union[List[int], np.ndarray] = None) -> DataFrame:
-#     """Select top topic docs from a fitted model.
-
-#     Parameters
-#     ----------
-#     docs : Union[List[str], np.ndarray]
-#         Iterable of documents (e.g. list of strings).
-#     p_zd : np.ndarray
-#         Documents vs topics probabilities matrix.
-#     docs_num : int = 20
-#         The number of documents to select.
-#     topics_idx : Union[List, numpy.ndarray] = None
-#         Topics indices. Meant to be used to select only stable
-#         topics.
-
-#     Returns
-#     -------
-#     DataFrame
-#         Documents with highest probabilities in all selected topics.
-
-#     Example
-#     -------
-#     >>> top_docs = btm.get_top_topic_docs(
-#     ...     texts,
-#     ...     p_zd,
-#     ...     docs_num=100,
-#     ...     topics_idx=[1,2,3,4])
-#     """
-#     def _select_docs(docs, p_zd, topic_id: int):
-#         ps = p_zd[:, topic_id]
-#         idx = np.argsort(ps)[:-docs_num-1:-1]
-#         result = Series(np.asarray(docs)[idx])
-#         result.name = 'topic{}'.format(topic_id)
-#         return result
-
-#     topics_num = p_zd.shape[1]
-#     topics_idx = np.arange(topics_num) if topics_idx is None else topics_idx
-#     return concat(
-#         map(lambda x: _select_docs(docs, p_zd, x), topics_idx), axis=1)

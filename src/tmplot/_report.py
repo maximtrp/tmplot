@@ -16,18 +16,18 @@ def prepare_coords(
         labels: Optional[Sequence] = None,
         dist_kws: dict = None,
         scatter_kws: dict = None) -> DataFrame:
-    """[summary]
+    """Prepare coordinates for topics scatter plot.
 
     Parameters
     ----------
     model : object
-        [description]
+        Topic model instance.
     labels : Optional[Sequence]
-
+        Topics labels.
     dist_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`tmplot.get_topics_dist()`.
     scatter_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`tmplot.get_topics_scatter()`.
     """
     if not dist_kws:
         dist_kws = {}

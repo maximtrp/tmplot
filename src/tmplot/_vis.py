@@ -31,51 +31,55 @@ def plot_scatter_topics(
         text_enc_kws: dict = None,
         size_kws: dict = None,
         color_kws: dict = None) -> Chart:
-    """[summary]
+    """Topics scatter plot in 2D.
 
     Parameters
     ----------
     topics_coords : Union[ndarray, DataFrame]
-        [description]
+        Topics scatter coordinates.
     x_col : str, optional
-        [description], by default "x"
+        X column name.
     y_col : str, optional
-        [description], by default "y"
+        Y column name.
     topic : int, optional
-        [description], by default None
+        Topic index.
     size_col : str, optional
-        [description], by default None
+        Column with size values.
     label_col : str, optional
-        [description], by default None
+        Column with topic labels.
     color_col : str, optional
-        [description], by default None
+        Column with colors.
     topic_col : str, optional
-        [description], by default None
+        Column with topics texts.
     font_size : int, optional
-        [description], by default 13
+        Font size.
     x_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.X()`.
     y_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.Y()`.
     chart_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.Chart()`.
     circle_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.Chart.mark_circle()`.
     circle_enc_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.Chart.encode()`
+        for circle elements.
     text_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.Chart.mark_text()`.
     text_enc_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.Chart.encode()`
+        for text elements.
     size_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.Size()` for
+        circle elements.
     color_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.Color()` for
+        circle elements.
 
     Returns
     -------
     Chart
-        [description]
+        Topics scatter plot.
     """
     if not chart_kws:
         chart_kws = {}
@@ -182,35 +186,35 @@ def plot_terms(
         x_kws: dict = None,
         y_kws: dict = None,
         color_kws: dict = None) -> Chart:
-    """[summary]
+    """Plot words conditional and marginal probabilities.
 
     Parameters
     ----------
     terms_probs : DataFrame
-        [description]
+        Words probabilities.
     x_col : str, optional
-        [description], by default 'Probability'
+        X column name.
     y_col : str, optional
-        [description], by default 'Terms'
+        Y column name.
     color_col : str, optional
-        [description], by default 'Type'
+        Column with values types (for coloring).
     font_size : int, optional
-        [description], by default 13
+        Font size.
     chart_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.Chart()`.
     bar_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.Chart.mark_bar()`.
     x_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.X()`.
     y_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.Y()`.
     color_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`altair.Color()`.
 
     Returns
     -------
     Chart
-        [description]
+        Terms probabilities chart.
     """
     if not x_kws:
         x_kws = {'stack': None}
@@ -242,23 +246,24 @@ def plot_terms(
 
 def plot_docs(
         docs: Union[Sequence[str], DataFrame],
-        styles: dict = None,
+        styles: str = None,
         html_kws: dict = None) -> DataFrame:
-    """[summary]
+    """Documents plotting functionality for report interface.
 
     Parameters
     ----------
     docs : Union[Sequence[str], DataFrame]
-        [description]
-    styles : dict, optional
-        [description], by default None
+        Documents.
+    styles : str, optional
+        Styles string for formatting the table with documents.
+        Concatenated with HTML.
     html_kws : dict, optional
-        [description], by default None
+        Keyword arguments passed to :py:meth:`pandas.DataFrame.to_html` method.
 
     Returns
     -------
-    DataFrame
-        [description]
+    ipywidgets.HTML
+        Topic documents.
     """
     from IPython.display import HTML
 
@@ -275,5 +280,5 @@ def plot_docs(
         df_docs = DataFrame({'docs': docs})
 
     with option_context('display.max_colwidth', 0):
-        df_docs.style.set_properties(**{'text-align': 'center'})
+        # df_docs.style.set_properties(**{'text-align': 'center'})
         return HTML(styles + df_docs.to_html(**html_kws))
