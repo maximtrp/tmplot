@@ -9,9 +9,9 @@
 
 * Supported models:
 
-  * tomotopy: `LDAModel`, `LLDAModel`, `CTModel`, `DMRModel`, `HDPModel`, `PTModel`, `SLDAModel`, `GDMRModel`
-  * gensim: `LdaModel`, `LdaMulticore`
-  * bitermplus: `BTM`
+  * [tomotopy](https://bab2min.github.io/tomotopy/): `LDAModel`, `LLDAModel`, `CTModel`, `DMRModel`, `HDPModel`, `PTModel`, `SLDAModel`, `GDMRModel`
+  * [gensim](https://radimrehurek.com/gensim/): `LdaModel`, `LdaMulticore`
+  * [bitermplus](https://github.com/maximtrp/bitermplus): `BTM`
 
 * Supported distance metrics:
 
@@ -23,7 +23,7 @@
   * Total variation distance
   * Jaccard inversed index
 
-* Supported algorithms for calculating topics scatter coordinates:
+* Supported [algorithms](https://scikit-learn.org/stable/modules/classes.html#module-sklearn.manifold) for calculating topics scatter coordinates:
 
   * t-SNE
   * SpectralEmbedding
