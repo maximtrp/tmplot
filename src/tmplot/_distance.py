@@ -125,13 +125,14 @@ def get_topics_scatter(
         Topics vs documents probability matrix.
     method : str = 'graph'
         Method to calculate topics scatter coordinates (X and Y).
-    method_kws : dict = None
-        Keyword arguments passed to method function. Possible values:
-        1) 'tsne' - TSNE.
+        Possible values:
+        1) 'tsne' - t-distributed Stochastic Neighbor Embedding.
         2) 'sem' - SpectralEmbedding.
         3) 'mds' - MDS.
         4) 'lle' - LocallyLinearEmbedding.
         5) 'isomap' - Isomap.
+    method_kws : dict = None
+        Keyword arguments passed to method function.
 
     Returns
     -------

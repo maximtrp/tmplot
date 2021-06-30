@@ -1,0 +1,3 @@
+sphinx_rtd_theme
+nbsphinx
+git+git://github.com/maximtrp/tmplot

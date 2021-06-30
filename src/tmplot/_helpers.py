@@ -2,7 +2,8 @@ __all__ = [
     'get_phi', 'get_theta',
     'get_relevant_terms', 'get_salient_terms',
     'get_docs', 'get_top_docs',
-    'calc_terms_marg_probs', 'calc_topics_marg_probs']
+    'calc_terms_marg_probs', 'calc_topics_marg_probs',
+    'calc_terms_probs_ratio']
 from typing import Union, Optional, Sequence, List
 from functools import partial
 from math import log
@@ -10,8 +11,15 @@ from numpy import ndarray, zeros, argsort, array, arange, vstack
 from pandas import concat, Series, DataFrame
 from tomotopy import (
     LDAModel as tomotopyLDA,
-    LLDAModel as tomotopyLLDA)
+    LLDAModel as tomotopyLLDA,
+    CTModel as tomotopyCT,
+    DMRModel as tomotopyDMR,
+    HDPModel as tomotopyHDP,
+    PTModel as tomotopyPT,
+    SLDAModel as tomotopySLDA,
+    GDMRModel as tomotopyGDMR)
 from gensim.models.ldamodel import LdaModel as gensimLDA
+from gensim.models.ldamulticore import LdaMulticore as gensimLDAMC
 from bitermplus._btm import BTM
 
 
@@ -64,12 +72,14 @@ def get_phi(
 
 
 def _is_tomotopy(model: object) -> bool:
-    tomotopy_models = [tomotopyLDA, tomotopyLLDA]
+    tomotopy_models = [
+        tomotopyLDA, tomotopyLLDA, tomotopyCT, tomotopyDMR, tomotopyHDP,
+        tomotopyPT, tomotopySLDA, tomotopyGDMR]
     return any(map(partial(isinstance, model), tomotopy_models))
 
 
 def _is_gensim(model: object) -> bool:
-    gensim_models = [gensimLDA]
+    gensim_models = [gensimLDA, gensimLDAMC]
     return any(map(partial(isinstance, model), gensim_models))
 
 
@@ -310,7 +320,16 @@ def calc_terms_probs_ratio(
     terms_num : int, optional
         Number of words to return.
     lambda_ : float, optional
-        Lambda coefficient.
+        Weight parameter. It determines the weight given to the probability
+        of term W under topic T relative to its lift [1]_. Setting it to 1
+        equals topic-specific probabilities of terms.
+
+    References
+    ----------
+    .. [1] Sievert, C., & Shirley, K. (2014). LDAvis: A method for visualizing
+           and interpreting topics. In Proceedings of the workshop on
+           interactive language learning, visualization, and interfaces (pp.
+           63-70).
 
     Returns
     -------
@@ -335,8 +354,11 @@ def calc_terms_probs_ratio(
 
     return terms_probs_slice\
         .reset_index(drop=False)\
-        .melt(id_vars=['index'], var_name='Type', value_name='Probability')\
-        .rename(columns={'index': 'Terms'})
+        .melt(
+            id_vars=[terms_probs_slice.index.name],
+            var_name='Type',
+            value_name='Probability')\
+        .rename(columns={terms_probs_slice.index.name: 'Terms'})
 
 
 def get_relevant_terms(
@@ -352,7 +374,16 @@ def get_relevant_terms(
     topic : int
         Topic index.
     lambda_ : float = 0.6
-        Lambda value.
+        Weight parameter. It determines the weight given to the probability
+        of term W under topic T relative to its lift [1]_. Setting it to 1
+        equals topic-specific probabilities of terms.
+
+    References
+    ----------
+    .. [1] Sievert, C., & Shirley, K. (2014). LDAvis: A method for visualizing
+           and interpreting topics. In Proceedings of the workshop on
+           interactive language learning, visualization, and interfaces (pp.
+           63-70).
 
     Returns
     -------

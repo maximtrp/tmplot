@@ -9,8 +9,8 @@
 
 * Supported models:
 
-  * tomotopy: `LDA`
-  * gensim: `LdaModel`
+  * tomotopy: `LDAModel`, `LLDAModel`, `CTModel`, `DMRModel`, `HDPModel`, `PTModel`, `SLDAModel`, `GDMRModel`
+  * gensim: `LdaModel`, `LdaMulticore`
   * bitermplus: `BTM`
 
 * Supported distance metrics:

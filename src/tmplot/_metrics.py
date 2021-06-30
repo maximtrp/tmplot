@@ -1,2 +1,0 @@
-# TODO: perplexity
-# TODO: coherence

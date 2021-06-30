@@ -37,10 +37,7 @@ def prepare_coords(
     phi = get_phi(model)
     theta = get_theta(model)
     topics_dists = get_topics_dist(phi, **dist_kws)
-    # topics_marg_prob_sum = calc_topics_marg_probs(theta)
     topics_coords = get_topics_scatter(topics_dists, theta, **scatter_kws)
-    # topics_coords['size'] = (topics_marg_prob_sum
-    #  / topics_marg_prob_sum.sum() * 100).round(2)
     topics_coords['label'] = labels or theta.index
     return topics_coords
 
@@ -57,6 +54,8 @@ def report(
         show_words: bool = True,
         show_topics: bool = True,
         topics_kws: dict = None,
+        height: int = 500,
+        width: int = 250,
         coords_kws: dict = None,
         words_kws: dict = None,
         docs_kws: dict = None,
@@ -103,10 +102,12 @@ def report(
     """
     from IPython.display import display
 
-    _topics_kws = {'chart_kws': {'height': 600, 'width': 350}}\
+    _topics_kws = {
+        'chart_kws': {'height': height, 'width': width}}\
         if not topics_kws else deepcopy(topics_kws)
     _coords_kws = {} if not coords_kws else deepcopy(coords_kws)
-    _words_kws = {'chart_kws': {'height': 600, 'width': 250}}\
+    _words_kws = {
+        'chart_kws': {'height': height, 'width': width}}\
         if not words_kws else deepcopy(words_kws)
     _top_docs_kws = {} if not docs_kws else deepcopy(top_docs_kws)
     _docs_kws = {} if not docs_kws else deepcopy(docs_kws)
@@ -176,8 +177,10 @@ def report(
     select_topic = wdg.Dropdown(
         options=list(zip(topics_labels, topics_ids)), value=0)
     select_topic.observe(_on_select_topic, names='value')
-    select_topic_header = wdg.HTML('Select a topic:')
+    select_topic_header = wdg.HTML('<b>Select a topic</b>:')
     select_topic_widget = wdg.HBox([select_topic_header, select_topic])
+    select_topic_wrapper = wdg.VBox(
+        [select_topic_widget], layout={'align_items': 'center'})
 
     # Topics scatter
     def _on_select_topics_method(names):
@@ -204,6 +207,7 @@ def report(
         topics_method = wdg.Dropdown(
             options=options_methods,
             value='tsne',
+            layout=wdg.Layout(width=f'{width/1.25}px')
         )
         topics_method_widget = wdg.HBox([topics_method_header, topics_method])
         topics_method.observe(_on_select_topics_method, names='value')
@@ -211,7 +215,9 @@ def report(
         topics_plot = plot_scatter_topics(**_topics_kws)
         topics_plot_output.append_display_data(topics_plot)
         topics_plot_children.extend([topics_method_widget, topics_plot_output])
-        topics_widget = wdg.VBox(topics_plot_children)
+        topics_widget = wdg.VBox(
+            topics_plot_children,
+            layout={'align_items': 'center'})
         children.append(topics_widget)
 
     # Words
@@ -236,6 +242,7 @@ def report(
             orientation='horizontal',
             readout=True,
             readout_format='.2f',
+            layout=wdg.Layout(width=f'{width/1.25}px')
         )
         lambda_slider.observe(_on_select_lambda, names='value')
         lambda_slider_header = wdg.HTML('Lambda value:')
@@ -246,7 +253,9 @@ def report(
         words_plot_children = [words_header, lambda_slider_widget]\
             if show_headers else [lambda_slider_widget]
         words_plot_children.append(words_plot_output)
-        words_widget = wdg.VBox(words_plot_children)
+        words_widget = wdg.VBox(
+            words_plot_children,
+            layout={'align_items': 'center'})
         children.append(words_widget)
 
     # Docs
@@ -268,6 +277,7 @@ def report(
             orientation='horizontal',
             readout=True,
             readout_format='d',
+            layout=wdg.Layout(width=f'{width/1.25}px')
         )
         docs_num_slider.observe(_on_select_docs_num, names='value')
         docs_num_slider_header = wdg.HTML('Documents number:')
@@ -280,12 +290,13 @@ def report(
         docs_plot_children = [docs_header, docs_num_slider_widget]\
             if show_headers else [docs_num_slider_widget]
         docs_plot_children.append(docs_plot_output)
-        docs_widget = wdg.VBox(docs_plot_children)
+        docs_widget = wdg.VBox(
+            docs_plot_children,
+            layout={'align_items': 'center'})
         children.append(docs_widget)
 
     grid_box = wdg.GridBox(children, layout=layout)
-    app = wdg.VBox(
-        [select_topic_widget, grid_box],
-        layout={'align_items': 'center'})
+    hr = wdg.HTML('<hr style="border: 0; border-bottom: 1px solid #aaa">')
+    app = wdg.VBox([select_topic_wrapper, hr, grid_box])
 
     return app
