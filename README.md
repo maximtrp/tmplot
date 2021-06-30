@@ -15,7 +15,7 @@
 
 * Supported distance metrics:
 
-  * Kullback-Leibler (symmetric and non-symmetric) divergence.
+  * Kullback-Leibler (symmetric and non-symmetric) divergence
   * Jenson-Shannon divergence
   * Jeffrey's divergence
   * Hellinger distance
@@ -58,4 +58,28 @@ pip install git+https://github.com/maximtrp/tmplot.git
 ## Quick example
 
 ```python
+# Importing packages
+import tmplot as tmp
+import pickle as pkl
+import pandas as pd
+
+# Reading a model from a file
+with open('data/model.pkl', 'rb') as file:
+    model = pkl.load(file)
+
+# Reading documents from a file
+docs = pd.read_csv('data/docs.txt.gz', header=None).values.ravel()
+
+# Plotting topics as a scatter plot
+topics_coords = tmp.prepare_coords(model)
+tmp.plot_scatter_topics(topics_coords, size_col='size', label_col='label')
+
+# Plotting terms probabilities
+terms_probs = tmp.calc_terms_probs_ratio(phi, topic=0, lambda_=1)
+tmp.plot_terms(terms_probs)
+
+# Running report interface
+tmp.report(model, docs=docs, width=250)
 ```
+
+You can find more examples in the [tutorial](https://tmplot.readthedocs.io/en/latest/tutorial.html).
