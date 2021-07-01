@@ -47,7 +47,7 @@ def get_phi(
     if _is_tomotopy(model):
 
         # Topics vs words distributions
-        twd = list(map(lambda x: model.get_topic_word_dist(x), range(model.k)))
+        twd = list(map(model.get_topic_word_dist, range(model.k)))
 
         # Concatenating into DataFrame
         phi = DataFrame(vstack(twd).T)

@@ -56,7 +56,7 @@ pip install git+https://github.com/maximtrp/tmplot.git
 * `pandas`
 * `altair`
 * `ipywidgets`
-* `tomotopy`, `gensim`, and `bitermplus` (optional, for using models objects directly)
+* `tomotopy`, `gensim`, and `bitermplus`
 
 ## Quick example
 

@@ -5,3 +5,6 @@ scikit-learn
 scipy
 altair
 ipywidgets
+tomotopy
+gensim
+bitermplus

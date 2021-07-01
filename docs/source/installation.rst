@@ -20,8 +20,8 @@ Dependencies
 
 * ``numpy``
 * ``scipy``
-* ``scikit-learn`
+* ``scikit-learn``
 * ``pandas``
 * ``altair``
 * ``ipywidgets``
-* ``tomotopy``, ``gensim``, and ``bitermplus`` (optional, for using models objects directly)
+* ``tomotopy``, ``gensim``, and ``bitermplus`` (for topic modeling)

@@ -1,5 +1,6 @@
 __all__ = ['prepare_coords', 'report']
 from typing import Optional, Sequence, List
+from copy import deepcopy
 from ipywidgets import widgets as wdg
 from pandas import DataFrame
 from ._distance import get_topics_dist, get_topics_scatter
@@ -8,7 +9,6 @@ from ._helpers import (
     calc_terms_probs_ratio,
     get_phi, get_theta,
     get_top_docs)
-from copy import deepcopy
 
 
 def prepare_coords(
@@ -46,7 +46,6 @@ def report(
         model: object = None,
         docs: Optional[Sequence[str]] = None,
         topics_labels: Optional[Sequence[str]] = None,
-        vocab: Optional[Sequence[str]] = None,
         corpus: Optional[List] = None,
         layout: wdg.Layout = None,
         show_headers: bool = True,
@@ -70,8 +69,6 @@ def report(
         Documents.
     topics_labels : Optional[Sequence[str]], optional
         Topics labels.
-    vocab : Optional[Sequence[str]], optional
-        Vocabulary as a list of words.
     corpus : Optional[List[str]], optional
         Gensim corpus.
     layout : wdg.Layout, optional
@@ -260,7 +257,7 @@ def report(
 
     # Docs
     if show_docs:
-        def _on_select_docs_num(sel):
+        def _on_select_docs_num(_):
             docs_num = docs_num_slider.value
             docs_plot_output.clear_output(wait=False)
             with docs_plot_output:
@@ -296,7 +293,7 @@ def report(
         children.append(docs_widget)
 
     grid_box = wdg.GridBox(children, layout=layout)
-    hr = wdg.HTML('<hr style="border: 0; border-bottom: 1px solid #aaa">')
-    app = wdg.VBox([select_topic_wrapper, hr, grid_box])
+    hr_line = wdg.HTML('<hr style="border: 0; border-bottom: 1px solid #aaa">')
+    app = wdg.VBox([select_topic_wrapper, hr_line, grid_box])
 
     return app
