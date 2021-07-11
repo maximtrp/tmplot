@@ -148,6 +148,7 @@ def report(
             'docs': docs, 'theta': theta,
             'topics': [0], 'docs_num': 2})
         top_docs = get_top_docs(**_top_docs_kws)
+        top_docs.columns = ['']
         _docs_kws.update({'docs': top_docs})
 
     # Topic selection
@@ -166,6 +167,7 @@ def report(
         with docs_plot_output:
             _top_docs_kws.update({'topics': [sel['new']]})
             top_docs = get_top_docs(**_top_docs_kws)
+            top_docs.columns = ['']
             _docs_kws.update({'docs': top_docs})
             display(plot_docs(**_docs_kws))
 
@@ -263,6 +265,7 @@ def report(
             with docs_plot_output:
                 _top_docs_kws.update({'docs_num': docs_num})
                 top_docs = get_top_docs(**_top_docs_kws)
+                top_docs.columns = ['']
                 _docs_kws.update({'docs': top_docs})
                 display(plot_docs(**_docs_kws))
 
