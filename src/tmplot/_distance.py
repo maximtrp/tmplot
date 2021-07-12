@@ -165,7 +165,11 @@ def get_topics_scatter(
     topics_xy = DataFrame(coords, columns=['x', 'y'])
     topics_xy['topic'] = topics_xy.index.astype(int)
     topics_xy['size'] = calc_topics_marg_probs(theta)
-    topics_xy['size'] *= (100 / topics_xy['size'].sum())
+    size_sum = topics_xy['size'].sum()
+    if size_sum > 0:
+        topics_xy['size'] *= (100 / topics_xy['size'].sum())
+    else:
+        topics_xy['size'] = np.nan
     return topics_xy
 
 

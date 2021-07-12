@@ -102,7 +102,10 @@ def plot_scatter_topics(
         circle_enc_kws = {
             "x": X(**x_kws),
             "y": Y(**y_kws),
-            "size": Size(size_col, **size_kws) if size_col else value(500)}
+            "size": Size(size_col, **size_kws)
+            if size_col and not topics_coords[size_col].isna().any()
+            else value(500)
+            }
 
     if not text_kws:
         text_kws = {"align": "center", "baseline": "middle"}
