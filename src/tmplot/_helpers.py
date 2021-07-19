@@ -375,12 +375,12 @@ def get_relevant_terms(
         Topic index.
     lambda_ : float = 0.6
         Weight parameter. It determines the weight given to the probability
-        of term W under topic T relative to its lift [1]_. Setting it to 1
+        of term W under topic T relative to its lift [2]_. Setting it to 1
         equals topic-specific probabilities of terms.
 
     References
     ----------
-    .. [1] Sievert, C., & Shirley, K. (2014). LDAvis: A method for visualizing
+    .. [2] Sievert, C., & Shirley, K. (2014). LDAvis: A method for visualizing
            and interpreting topics. In Proceedings of the workshop on
            interactive language learning, visualization, and interfaces (pp.
            63-70).

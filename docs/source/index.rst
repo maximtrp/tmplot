@@ -21,7 +21,7 @@ Features
 
 * Supported distance metrics:
 
-  * Kullback-Leibler (symmetric and non-symmetric) divergence.
+  * Kullback-Leibler (symmetric and non-symmetric) divergence
   * Jenson-Shannon divergence
   * Jeffrey's divergence
   * Hellinger distance

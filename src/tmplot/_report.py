@@ -199,7 +199,8 @@ def report(
             ('TSNE', 'tsne'),
             ('SpectralEmbedding', 'sem'),
             ('MDS', 'mds'),
-            ('LocallyLinearEmbedding', 'lle'),
+            ('LocallyLinearEmbedding (Standard)', 'lle'),
+            ('LocallyLinearEmbedding (LTSA)', 'ltsa'),
             ('Isomap', 'isomap')
         ]
         topics_method_header = wdg.HTML('Select a method:')

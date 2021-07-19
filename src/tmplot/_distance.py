@@ -130,7 +130,8 @@ def get_topics_scatter(
         2) 'sem' - SpectralEmbedding.
         3) 'mds' - MDS.
         4) 'lle' - LocallyLinearEmbedding.
-        5) 'isomap' - Isomap.
+        5) 'ltsa' - LocallyLinearEmbedding with LTDA method.
+        6) 'isomap' - Isomap.
     method_kws : dict = None
         Keyword arguments passed to method function.
 
@@ -155,6 +156,11 @@ def get_topics_scatter(
         transformer = MDS(**method_kws)
 
     elif method == 'lle':
+        method_kws['method'] = 'standard'
+        transformer = LocallyLinearEmbedding(**method_kws)
+
+    elif method == 'ltsa':
+        method_kws['method'] = 'ltsa'
         transformer = LocallyLinearEmbedding(**method_kws)
 
     elif method == 'isomap':
