@@ -1,3 +1,4 @@
+sphinx==4.0.2
 sphinx_rtd_theme
 nbsphinx
 git+git://github.com/maximtrp/tmplot
