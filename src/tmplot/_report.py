@@ -158,7 +158,8 @@ def report(
         words_plot_output.clear_output(wait=False)
         docs_plot_output.clear_output(wait=False)
         with words_plot_output:
-            terms_probs = calc_terms_probs_ratio(phi, topic=topic)
+            terms_probs = calc_terms_probs_ratio(
+                phi, topic=topic, lambda_=lambda_slider.value)
             _words_kws.update({'terms_probs': terms_probs})
             display(plot_terms(**_words_kws))
         with topics_plot_output:
@@ -224,7 +225,7 @@ def report(
     if show_words:
         def _on_select_lambda(sel):
             topic = select_topic.value
-            lambda_ = sel['new']
+            lambda_ = lambda_slider.value
             words_plot_output.clear_output(wait=False)
             with words_plot_output:
                 terms_probs = calc_terms_probs_ratio(

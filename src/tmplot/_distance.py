@@ -123,7 +123,7 @@ def get_topics_scatter(
         Topics distance matrix.
     theta : numpy.ndarray
         Topics vs documents probability matrix.
-    method : str = 'graph'
+    method : str = 'tsne'
         Method to calculate topics scatter coordinates (X and Y).
         Possible values:
         1) 'tsne' - t-distributed Stochastic Neighbor Embedding.
@@ -187,7 +187,7 @@ def get_top_topic_words(
 
     Parameters
     ----------
-    phi : DataFrame
+    phi : pandas.DataFrame
         Words vs topics matrix (phi) with words as
         indices and topics as columns.
     words_num : int = 20
