@@ -4,23 +4,40 @@ __all__ = [
     'get_docs', 'get_top_docs',
     'calc_terms_marg_probs', 'calc_topics_marg_probs',
     'calc_terms_probs_ratio']
+from warnings import warn
+from importlib.util import find_spec
 from typing import Union, Optional, Sequence, List
 from functools import partial
 from math import log
 from numpy import ndarray, zeros, argsort, array, arange, vstack
 from pandas import concat, Series, DataFrame
-from tomotopy import (
-    LDAModel as tomotopyLDA,
-    LLDAModel as tomotopyLLDA,
-    CTModel as tomotopyCT,
-    DMRModel as tomotopyDMR,
-    HDPModel as tomotopyHDP,
-    PTModel as tomotopyPT,
-    SLDAModel as tomotopySLDA,
-    GDMRModel as tomotopyGDMR)
-from gensim.models.ldamodel import LdaModel as gensimLDA
-from gensim.models.ldamulticore import LdaMulticore as gensimLDAMC
-from bitermplus._btm import BTM
+
+tomotopy_installed = find_spec('tomotopy')
+if tomotopy_installed:
+    from tomotopy import (
+        LDAModel as tomotopyLDA,
+        LLDAModel as tomotopyLLDA,
+        CTModel as tomotopyCT,
+        DMRModel as tomotopyDMR,
+        HDPModel as tomotopyHDP,
+        PTModel as tomotopyPT,
+        SLDAModel as tomotopySLDA,
+        GDMRModel as tomotopyGDMR)
+
+gensim_installed = find_spec('gensim')
+if gensim_installed:
+    from gensim.models.ldamodel import LdaModel as gensimLDA
+    from gensim.models.ldamulticore import LdaMulticore as gensimLDAMC
+
+bitermplus_installed = find_spec('bitermplus')
+if bitermplus_installed:
+    from bitermplus._btm import BTM
+
+
+def __warn_package_installation(package_name: str):
+    warn(
+        'Please install "f{package_name}" package to analyze its models.\n'
+        'Run `pip install f{package_name}` in the console.')
 
 
 def get_phi(
@@ -44,6 +61,8 @@ def get_phi(
     DataFrame
         Words vs topics matrix (phi).
     """
+    phi = None
+
     if _is_tomotopy(model):
 
         # Topics vs words distributions
@@ -72,19 +91,31 @@ def get_phi(
 
 
 def _is_tomotopy(model: object) -> bool:
-    tomotopy_models = [
-        tomotopyLDA, tomotopyLLDA, tomotopyCT, tomotopyDMR, tomotopyHDP,
-        tomotopyPT, tomotopySLDA, tomotopyGDMR]
-    return any(map(partial(isinstance, model), tomotopy_models))
+    if tomotopy_installed:
+        tomotopy_models = [
+            tomotopyLDA, tomotopyLLDA, tomotopyCT, tomotopyDMR, tomotopyHDP,
+            tomotopyPT, tomotopySLDA, tomotopyGDMR]
+        return any(map(partial(isinstance, model), tomotopy_models))
+    else:
+        __warn_package_installation("tomotopy")
+        return False
 
 
 def _is_gensim(model: object) -> bool:
-    gensim_models = [gensimLDA, gensimLDAMC]
-    return any(map(partial(isinstance, model), gensim_models))
+    if gensim_installed:
+        gensim_models = [gensimLDA, gensimLDAMC]
+        return any(map(partial(isinstance, model), gensim_models))
+    else:
+        __warn_package_installation("gensim")
+        return False
 
 
 def _is_btmplus(model: object) -> bool:
-    return isinstance(model, BTM)
+    if bitermplus_installed:
+        return isinstance(model, BTM)
+    else:
+        __warn_package_installation("bitermplus")
+        return False
 
 
 def get_theta(
