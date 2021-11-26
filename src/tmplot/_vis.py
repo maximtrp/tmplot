@@ -1,5 +1,3 @@
-# TODO: interactive topic model report: scatter plot of topics,
-#       top words/docs in topic (number is controlled interactively)
 # TODO: heatmap of docs in topics
 # TODO: topic dynamics in time
 # TODO: word cloud
@@ -105,7 +103,7 @@ def plot_scatter_topics(
             "size": Size(size_col, **size_kws)
             if size_col and not topics_coords[size_col].isna().any()
             else value(500)
-            }
+        }
 
     if not text_kws:
         text_kws = {"align": "center", "baseline": "middle"}
@@ -240,7 +238,7 @@ def plot_terms(
             x=X(x_col, **x_kws),
             y=Y(y_col, **y_kws),
             color=Color(**color_kws)
-        )\
+    )\
         .configure_axis(labelFontSize=font_size, titleFontSize=font_size)\
         .configure_legend(
             labelFontSize=font_size, titleFontSize=font_size,

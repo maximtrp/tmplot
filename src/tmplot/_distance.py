@@ -1,5 +1,3 @@
-# TODO: top docs in topic
-# TODO: stable topics
 __all__ = [
     'get_topics_dist', 'get_topics_scatter', 'get_top_topic_words']
 from typing import Union, List
@@ -49,6 +47,11 @@ def _dist_bhat(a1: np.ndarray, a2: np.ndarray):
     return dist
 
 
+def _dist_tv(a1: np.ndarray, a2: np.ndarray):
+    dist = np.sum(np.abs(a1 - a2)) / 2
+    return dist
+
+
 def _dist_jac(a1: np.ndarray, a2: np.ndarray,  top_words=100):
     a = np.argsort(a1)[:-top_words-1:-1]
     b = np.argsort(a2)[:-top_words-1:-1]
@@ -76,7 +79,8 @@ def get_topics_dist(
         4) "jef" - Jeffrey's divergence.
         5) "hel" - Hellinger distance.
         6) "bhat" - Bhattacharyya distance.
-        7) "jac" - Jaccard index.
+        7) "tv" — Total variation distance.
+        8) "jac" - Jaccard index.
     **kwargs : dict
         Keyword arguments passed to distance function.
 
@@ -99,6 +103,7 @@ def get_topics_dist(
         "jef": _dist_jef,
         "hel": _dist_hel,
         "bhat": _dist_bhat,
+        "tv": _dist_tv,
         "jac": _dist_jac,
     }
 
@@ -205,4 +210,4 @@ def get_top_topic_words(
             lambda x: x
             .sort_values(ascending=False)
             .head(words_num).index, axis=0
-        )
+    )
