@@ -4,35 +4,35 @@
 [![Downloads](https://pepy.tech/badge/tmplot)](https://pepy.tech/project/tmplot)
 ![PyPI](https://img.shields.io/pypi/v/tmplot)
 
-**tmplot** is a Python package for visualizing topic modeling results. It provides the interactive report interface that borrows much from LDAvis/pyLDAvis and builds upon it offering a number of metrics for calculating topics distances and a number of algorithms for calculating scatter coordinates of topics.
+**tmplot** is a Python package for analysis and visualization of topic modeling results. It provides the interactive report interface that borrows much from LDAvis/pyLDAvis and builds upon it offering a number of metrics for calculating topic distances and a number of algorithms for calculating scatter coordinates of topics. It can be used to select closest and stable topics across multiple models.
 
 ![Plots](https://raw.githubusercontent.com/maximtrp/tmplot/main/images/topics_terms_plots.png)
 
 ## Features
 
-* Supported models:
+- Supported models:
 
-  * [tomotopy](https://bab2min.github.io/tomotopy/): `LDAModel`, `LLDAModel`, `CTModel`, `DMRModel`, `HDPModel`, `PTModel`, `SLDAModel`, `GDMRModel`
-  * [gensim](https://radimrehurek.com/gensim/): `LdaModel`, `LdaMulticore`
-  * [bitermplus](https://github.com/maximtrp/bitermplus): `BTM`
+  - [tomotopy](https://bab2min.github.io/tomotopy/): `LDAModel`, `LLDAModel`, `CTModel`, `DMRModel`, `HDPModel`, `PTModel`, `SLDAModel`, `GDMRModel`
+  - [gensim](https://radimrehurek.com/gensim/): `LdaModel`, `LdaMulticore`
+  - [bitermplus](https://github.com/maximtrp/bitermplus): `BTM`
 
-* Supported distance metrics:
+- Supported distance metrics:
 
-  * Kullback-Leibler (symmetric and non-symmetric) divergence
-  * Jenson-Shannon divergence
-  * Jeffrey's divergence
-  * Hellinger distance
-  * Bhattacharyya distance
-  * Total variation distance
-  * Jaccard inversed index
+  - Kullback-Leibler (symmetric and non-symmetric) divergence
+  - Jenson-Shannon divergence
+  - Jeffrey's divergence
+  - Hellinger distance
+  - Bhattacharyya distance
+  - Total variation distance
+  - Jaccard inversed index
 
-* Supported [algorithms](https://scikit-learn.org/stable/modules/classes.html#module-sklearn.manifold) for calculating topics scatter coordinates:
+- Supported [algorithms](https://scikit-learn.org/stable/modules/classes.html#module-sklearn.manifold) for calculating topics scatter coordinates:
 
-  * t-SNE
-  * SpectralEmbedding
-  * MDS
-  * LocallyLinearEmbedding
-  * Isomap
+  - t-SNE
+  - SpectralEmbedding
+  - MDS
+  - LocallyLinearEmbedding
+  - Isomap
 
 ## Installation
 
@@ -50,13 +50,13 @@ pip install git+https://github.com/maximtrp/tmplot.git
 
 ## Dependencies
 
-* `numpy`
-* `scipy`
-* `scikit-learn`
-* `pandas`
-* `altair`
-* `ipywidgets`
-* `tomotopy`, `gensim`, and `bitermplus`
+- `numpy`
+- `scipy`
+- `scikit-learn`
+- `pandas`
+- `altair`
+- `ipywidgets`
+- `tomotopy`, `gensim`, and `bitermplus` (optional)
 
 ## Quick example
 
