@@ -53,6 +53,7 @@ Features
    Helper functions <tmplot_hlp>
    Distance functions <tmplot_dist>
    Report <tmplot_report>
+   Stability <tmplot_stab>
    Visualization <tmplot_vis>
 
 Indices and tables
