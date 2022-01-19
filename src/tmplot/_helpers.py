@@ -36,8 +36,8 @@ if bitermplus_installed:
 
 def __warn_package_installation(package_name: str):
     warn(
-        'Please install "f{package_name}" package to analyze its models.\n'
-        'Run `pip install f{package_name}` in the console.')
+        f'Please install "{package_name}" package to analyze its models.\n'
+        f'Run `pip install {package_name}` in the console.')
 
 
 def get_phi(
