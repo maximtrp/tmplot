@@ -7,7 +7,7 @@ from typing import Union, Sequence
 from pandas import DataFrame, option_context
 from numpy import ndarray
 from altair import (
-    Chart, X, Y, Size, Color, value, Text, Scale, Legend)
+    AxisConfig, Chart, X, Y, Size, Color, value, Text, Scale, Legend)
 
 
 def plot_scatter_topics(
@@ -83,10 +83,10 @@ def plot_scatter_topics(
         chart_kws = {}
 
     if not x_kws:
-        x_kws = {'shorthand': x_col, 'axis': None}
+        x_kws = {'shorthand': x_col}
 
     if not y_kws:
-        y_kws = {'shorthand': y_col, 'axis': None}
+        y_kws = {'shorthand': y_col}
 
     if not circle_kws:
         circle_kws = {"opacity": 0.33, "stroke": 'black', "strokeWidth": 1}
@@ -168,12 +168,13 @@ def plot_scatter_topics(
         .encode(**text_enc_kws)
 
     return (rule + rule2 + points + text)\
-        .configure_view(stroke='transparent')\
+        .configure_axis(labelFontSize=font_size, titleFontSize=font_size, grid=False)\
+        .configure(axis=AxisConfig(disable=True))\
+        .configure_view(stroke='transparent', strokeWidth=0)\
         .configure_legend(
             orient='bottom',
             labelFontSize=font_size,
-            titleFontSize=font_size)\
-        .configure_axis(labelFontSize=font_size, titleFontSize=font_size)
+            titleFontSize=font_size)
 
 
 def plot_terms(
