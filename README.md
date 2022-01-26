@@ -3,6 +3,7 @@
 [![Documentation Status](https://readthedocs.org/projects/tmplot/badge/?version=latest)](https://tmplot.readthedocs.io/en/latest/?badge=latest)
 [![Downloads](https://pepy.tech/badge/tmplot)](https://pepy.tech/project/tmplot)
 ![PyPI](https://img.shields.io/pypi/v/tmplot)
+[![Issues](https://img.shields.io/github/issues/maximtrp/tmplot.svg)](https://github.com/maximtrp/tmplot/issues)
 
 **tmplot** is a Python package for analysis and visualization of topic modeling results. It provides the interactive report interface that borrows much from LDAvis/pyLDAvis and builds upon it offering a number of metrics for calculating topic distances and a number of algorithms for calculating scatter coordinates of topics. It can be used to select closest and stable topics across multiple models.
 
