@@ -94,7 +94,7 @@ def report(
 
     Returns
     -------
-    wdg.VBox
+    ipywidgets.widgets.widget_box.VBox
         Report interface as a VBox instance.
     """
     from IPython.display import display
