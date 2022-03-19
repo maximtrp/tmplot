@@ -58,7 +58,7 @@ def get_phi(
 
     Returns
     -------
-    DataFrame
+    pandas.DataFrame
         Words vs topics matrix (phi).
     """
     phi = None
@@ -135,7 +135,7 @@ def get_theta(
 
     Returns
     -------
-    DataFrame
+    pandas.DataFrame
         Topics vs documents matrix (theta).
     """
     theta = None
@@ -203,7 +203,7 @@ def get_top_docs(
         List of documents.
     model : object, optional
         Topic model instance.
-    theta : ndarray, optional
+    theta : numpy.ndarray, optional
         Topics vs documents matrix.
     corpus : Optional[List], optional
         Corpus for ``gensim`` model.
@@ -214,7 +214,7 @@ def get_top_docs(
 
     Returns
     -------
-    DataFrame
+    pandas.DataFrame
         Top documents.
 
     Raises
@@ -248,14 +248,14 @@ def calc_topics_marg_probs(
 
     Parameters
     ----------
-    theta : Union[DataFrame, ndarray]
+    theta : Union[pandas.DataFrame, numpy.ndarray]
         Topics vs documents matrix.
     topic_id : int, optional
         Topic index.
 
     Returns
     -------
-    Union[DataFrame, ndarray]
+    Union[pandas.DataFrame, numpy.ndarray]
         Marginal topics probabilities.
     """
     if topic_id:
@@ -274,14 +274,14 @@ def calc_terms_marg_probs(
 
     Parameters
     ----------
-    phi : Union[ndarray, DataFrame]
+    phi : Union[numpy.ndarray, pandas.DataFrame]
         Words vs topics matrix.
     word_id: Optional[int]
         Word index.
 
     Returns
     -------
-    Union[ndarray, Series]
+    Union[numpy.ndarray, pandas.Series]
         Marginal terms probabilities.
     """
     if word_id:
@@ -344,7 +344,7 @@ def calc_terms_probs_ratio(
 
     Parameters
     ----------
-    phi : DataFrame
+    phi : pandas.DataFrame
         Words vs topics matrix.
     topic : int
         Topic index.
@@ -364,7 +364,7 @@ def calc_terms_probs_ratio(
 
     Returns
     -------
-    DataFrame
+    pandas.DataFrame
         Words conditional and marginal probabilities.
     """
     p_cond_name = 'Conditional term probability, p(w|t)'
@@ -400,7 +400,7 @@ def get_relevant_terms(
 
     Parameters
     ----------
-    phi : Union[np.ndarray, DataFrame]
+    phi : Union[numpy.ndarray, pandas.DataFrame]
         Words vs topics matrix (phi).
     topic : int
         Topic index.
@@ -418,7 +418,7 @@ def get_relevant_terms(
 
     Returns
     -------
-    Series
+    pandas.Series
         Terms sorted by relevance (descendingly).
     """
     phi_topic = phi.iloc[:, topic]\
