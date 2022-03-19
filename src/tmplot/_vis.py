@@ -76,7 +76,7 @@ def plot_scatter_topics(
 
     Returns
     -------
-    Chart
+    altair.Chart
         Topics scatter plot.
     """
     if not chart_kws:
@@ -215,7 +215,7 @@ def plot_terms(
 
     Returns
     -------
-    Chart
+    altair.Chart
         Terms probabilities chart.
     """
     if not x_kws:
