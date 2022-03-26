@@ -6,9 +6,9 @@ import numpy as np
 def entropy(phi: np.ndarray):
     """Renyi entropy calculation routine [1]_.
 
-    Renyi entropy can be used to estimate the optimal number of topics: just fit
-    several models with a different number of topics and choose the number of
-    topics for which the Renyi entropy is the least.
+    Renyi entropy can be used to estimate the optimal number of topics: fit
+    several models varying the number of topics and choose the model for
+    which Renyi entropy is minimal.
 
     Parameters
     ----------
@@ -33,8 +33,9 @@ def entropy(phi: np.ndarray):
     >>> # ...
     >>> # Model fitting step
     >>> # model = ...
+    >>> # phi = ...
     >>> # Entropy calculation
-    >>> entropy = tmp.entropy(model.matrix_topics_words_)
+    >>> entropy = tmp.entropy(phi)
     """
     # Terms number
     words_num = phi.shape[1]
