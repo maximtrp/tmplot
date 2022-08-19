@@ -149,7 +149,10 @@ def get_topics_scatter(
         method_kws = {'n_components': 2}
 
     if method == 'tsne':
-        method_kws.setdefault('metric',  'precomputed')
+        method_kws.setdefault('init', 'pca')
+        method_kws.setdefault('learning_rate', 'auto')
+        method_kws.setdefault(
+            'perplexity', min(50, max(topic_dists.shape[0] // 2, 5)))
         transformer = TSNE(**method_kws)
 
     elif method == 'sem':

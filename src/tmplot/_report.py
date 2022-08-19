@@ -1,4 +1,5 @@
 __all__ = ['prepare_coords', 'report']
+import warnings
 from typing import Optional, Sequence, List
 from copy import deepcopy
 from ipywidgets import widgets as wdg
@@ -9,6 +10,9 @@ from ._helpers import (
     calc_terms_probs_ratio,
     get_phi, get_theta,
     get_top_docs)
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 def prepare_coords(
@@ -43,8 +47,9 @@ def prepare_coords(
 
 
 def report(
-        model: object = None,
-        docs: Optional[Sequence[str]] = None,
+        model: object,
+        docs: Sequence[str],
+        *,
         topics_labels: Optional[Sequence[str]] = None,
         corpus: Optional[List] = None,
         layout: wdg.Layout = None,
@@ -54,7 +59,7 @@ def report(
         show_topics: bool = True,
         topics_kws: dict = None,
         height: int = 500,
-        width: int = 250,
+        width: int = 300,
         coords_kws: dict = None,
         words_kws: dict = None,
         docs_kws: dict = None,
@@ -63,9 +68,9 @@ def report(
 
     Parameters
     ----------
-    model : object, optional
+    model : object
         Topic model instance.
-    docs : Optional[Sequence[str]], optional
+    docs : Sequence[str]
         Documents.
     topics_labels : Optional[Sequence[str]], optional
         Topics labels.
@@ -110,7 +115,7 @@ def report(
     _docs_kws = {} if not docs_kws else deepcopy(docs_kws)
 
     # Headers init
-    topics_header = wdg.HTML('<b>Topics scatter plot</b>')\
+    topics_header = wdg.HTML('<b>Intertopic distance plot</b>')\
         if show_headers and show_topics else None
     words_header = wdg.HTML('<b>Relevant words (terms)</b>')\
         if show_headers and show_words else None
@@ -198,10 +203,10 @@ def report(
         topics_plot_children = [topics_header] if show_headers else []
         options_methods = [
             ('TSNE', 'tsne'),
-            ('SpectralEmbedding', 'sem'),
+            ('Spectral Embedding', 'sem'),
             ('MDS', 'mds'),
-            ('LocallyLinearEmbedding (Standard)', 'lle'),
-            ('LocallyLinearEmbedding (LTSA)', 'ltsa'),
+            ('Locally Linear Embedding (Standard)', 'lle'),
+            ('Locally Linear Embedding (LTSA)', 'ltsa'),
             ('Isomap', 'isomap')
         ]
         topics_method_header = wdg.HTML('Select a method:')

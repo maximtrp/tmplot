@@ -83,10 +83,10 @@ def plot_scatter_topics(
         chart_kws = {}
 
     if not x_kws:
-        x_kws = {'shorthand': x_col}
+        x_kws = {'shorthand': x_col, 'axis': None}
 
     if not y_kws:
-        y_kws = {'shorthand': y_col}
+        y_kws = {'shorthand': y_col, 'axis': None}
 
     if not circle_kws:
         circle_kws = {"opacity": 0.33, "stroke": 'black', "strokeWidth": 1}
@@ -169,7 +169,6 @@ def plot_scatter_topics(
 
     return (rule + rule2 + points + text)\
         .configure_axis(labelFontSize=font_size, titleFontSize=font_size, grid=False)\
-        .configure(axis=AxisConfig(disable=True))\
         .configure_view(stroke='transparent', strokeWidth=0)\
         .configure_legend(
             orient='bottom',

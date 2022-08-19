@@ -232,7 +232,7 @@ def get_top_docs(
         probs = theta[topic_id, :]
         idx = argsort(probs)[:-docs_num-1:-1]
         result = Series(list(map(lambda x: docs[x], idx)))
-        result.name = 'topic{}'.format(topic_id)
+        result.name = f'topic{topic_id}'
         return result
 
     topics_num = theta.shape[0]
