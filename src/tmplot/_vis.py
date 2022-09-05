@@ -169,6 +169,7 @@ def plot_scatter_topics(
 
     return (rule + rule2 + points + text)\
         .configure_axis(labelFontSize=font_size, titleFontSize=font_size, grid=False)\
+        .configure(axis=AxisConfig(disable=True))\
         .configure_view(stroke='transparent', strokeWidth=0)\
         .configure_legend(
             orient='bottom',
