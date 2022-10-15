@@ -45,16 +45,9 @@ def entropy(phi: np.ndarray):
     # Setting threshold
     thresh = 1 / words_num
 
-    # Maximum probability of each word
-    p_max = np.zeros(words_num)
-
-    # Obtaining maximum p value over all topics for each word
-    p_max = np.max(phi, axis=0)
-
     # Select the probabilities larger than thresh
-    p_max_mask = p_max > thresh
-    word_ratio = p_max_mask.sum()
-    sum_prob = p_max[p_max_mask].sum()
+    sum_prob = np.nansum(phi[phi > thresh])
+    word_ratio = np.count_nonzero(phi > thresh)
 
     # Shannon entropy
     shannon = log(word_ratio / (words_num * topics_num))
