@@ -3,7 +3,7 @@ from math import log
 import numpy as np
 
 
-def entropy(phi: np.ndarray):
+def entropy(phi: np.ndarray, max_probs: bool = False):
     """Renyi entropy calculation routine [1]_.
 
     Renyi entropy can be used to estimate the optimal number of topics: fit
@@ -19,6 +19,8 @@ def entropy(phi: np.ndarray):
     -------
     renyi : double
         Renyi entropy value.
+    max_probs : bool
+        Use maximum probabilities of terms per topics instead of all probability values.
 
     References
     ----------
@@ -45,9 +47,19 @@ def entropy(phi: np.ndarray):
     # Setting threshold
     thresh = 1 / words_num
 
-    # Select the probabilities larger than thresh
-    sum_prob = np.nansum(phi[phi > thresh])
-    word_ratio = np.count_nonzero(phi > thresh)
+    if max_probs:
+        # Obtaining maximum p value over all topics for each word
+        p_max = np.max(phi, axis=0)
+
+        # Select the probabilities larger than thresh
+        p_max_mask = p_max > thresh
+        word_ratio = p_max_mask.sum()
+        sum_prob = p_max[p_max_mask].sum()
+
+    else:
+        # Select the probabilities larger than thresh
+        sum_prob = np.nansum(phi[phi > thresh])
+        word_ratio = np.count_nonzero(phi > thresh)
 
     # Shannon entropy
     shannon = log(word_ratio / (words_num * topics_num))
