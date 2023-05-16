@@ -1,9 +1,45 @@
 [build-system]
-requires = [
-    "setuptools",
-    "wheel",
-]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "tmplot"
+version = "0.1.0"
+description = "Visualization of Topic Modeling Results"
+readme = "README.md"
+requires-python = "> 3.5"
+license.file = "LICENSE"
+authors = [
+  { name = "Maksim Terpilowski", email = "maximtrp@gmail.com" },
+]
+keywords = [
+    "data science",
+    "data analytics"
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Text Processing :: General",
+]
+urls.homepage = "https://github.com/maximtrp/tmplot"
+urls.changelog = "https://tmplot.readthedocs.io/"
+
+dependencies = [
+    "numpy",
+    "seaborn",
+    "pandas",
+    "scikit-learn",
+    "scipy",
+    "altair",
+    "ipywidgets",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+models = ["tomotopy>=0.8.0", "gensim", "bitermplus"]
 
 [tool.pytest.ini_options]
 log_cli = true

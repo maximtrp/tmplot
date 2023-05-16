@@ -72,7 +72,7 @@ def get_phi(
         phi = DataFrame(vstack(twd).T)
 
         # Specifying terms from vocabulary as index
-        phi.index = list(model.vocabs)
+        phi.index = list(model.used_vocabs)
 
     elif _is_gensim(model):
 

@@ -1,3 +1,5 @@
+__all__ = [
+    'entropy']
 """Metrics module"""
 from math import log
 import numpy as np

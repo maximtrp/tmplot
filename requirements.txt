@@ -1,8 +1,0 @@
-numpy
-seaborn
-pandas
-scikit-learn
-scipy
-altair
-ipywidgets
-tqdm
