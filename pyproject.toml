@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tmplot"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Visualization of Topic Modeling Results"
 readme = "README.md"
 requires-python = ">=3.8"
 license.file = "LICENSE"
 authors = [
-  { name = "Maksim Terpilowski", email = "maximtrp@gmail.com" },
+  { name = "Maksim Terpilovskii", email = "maximtrp@gmail.com" },
 ]
 keywords = [
     "data science",
@@ -43,6 +43,9 @@ dependencies = [
 [project.optional-dependencies]
 test = ["pytest"]
 models = ["tomotopy>=0.8.0", "gensim", "bitermplus"]
+
+[tool.setuptools.dynamic]
+version = {attr = "tmplot.__version__"}
 
 [tool.pytest.ini_options]
 log_cli = true
