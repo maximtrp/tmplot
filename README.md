@@ -2,7 +2,7 @@
 
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/maximtrp/tmplot/python-package.yml?label=tests)](https://github.com/maximtrp/tmplot/actions/workflows/python-package.yml)
 [![Documentation Status](https://readthedocs.org/projects/tmplot/badge/?version=latest)](https://tmplot.readthedocs.io/en/latest/?badge=latest)
-[![Downloads](https://pepy.tech/badge/tmplot)](https://pepy.tech/project/tmplot)
+[![Downloads](https://static.pepy.tech/badge/tmplot)](https://pepy.tech/project/tmplot)
 ![PyPI](https://img.shields.io/pypi/v/tmplot)
 [![Issues](https://img.shields.io/github/issues/maximtrp/tmplot.svg)](https://github.com/maximtrp/tmplot/issues)
 
