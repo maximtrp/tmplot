@@ -27,6 +27,7 @@ jobs:
         python -m pip install .
         python -m pip install .[test]
         python -m pip install .[models]
-    - name: Test with pytest
+    - name: Testing with pytest and measuring coverage
       run: |
-        pytest
+        coverage run --source src -m pytest .
+        codecov

@@ -1,10 +1,7 @@
 import unittest
-import os
-import sys
-import tmplot as tm
-from tomotopy import LDAModel
 import pickle as pkl
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from tomotopy import LDAModel
+from src import tmplot as tm
 
 
 class TestTmplot(unittest.TestCase):
@@ -30,6 +27,10 @@ class TestTmplot(unittest.TestCase):
         self.assertEqual(theta2.shape[0], 15)
         self.assertGreater(theta.shape[1], 0)
         self.assertGreater(theta2.shape[1], 0)
+
+    def test_prepare_coords(self):
+        coords = tm.prepare_coords(self.tomotopy_model)
+        self.assertTupleEqual(coords.shape, (self.tomotopy_model.k, 5))
 
     def test_is_tomotopy(self):
         self.assertTrue(tm._helpers._is_tomotopy(self.tomotopy_model))
