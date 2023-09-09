@@ -1,5 +1,6 @@
 # tmplot
 
+[![Codecov](https://img.shields.io/codecov/c/gh/maximtrp/tmplot?token=APKBRPDKXS&label=coverage)](https://codecov.io/gh/maximtrp/tmplot)
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/maximtrp/tmplot/python-package.yml?label=tests)](https://github.com/maximtrp/tmplot/actions/workflows/python-package.yml)
 [![Documentation Status](https://readthedocs.org/projects/tmplot/badge/?version=latest)](https://tmplot.readthedocs.io/en/latest/?badge=latest)
 [![Downloads](https://static.pepy.tech/badge/tmplot)](https://pepy.tech/project/tmplot)
