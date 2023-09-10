@@ -2,7 +2,7 @@ __all__ = ['get_closest_topics', 'get_stable_topics']
 from typing import List, Tuple, Any
 import numpy as np
 import tqdm
-from ._distance import _dist_klb, _dist_sklb, _dist_jsd, _dist_jef, _dist_hel,\
+from ._distance import _dist_klb, _dist_sklb, _dist_jsd, _dist_jef, _dist_hel, \
     _dist_bhat, _dist_jac, _dist_tv
 from ._helpers import get_phi
 
@@ -50,12 +50,13 @@ def get_closest_topics(
     Returns
     -------
     closest_topics : np.ndarray
-        Closest topics indices in one two-dimensional array.
+        Closest topics indices in one two-dimensional array (topics ✕ models).
         Columns correspond to the compared models (their indices),
         rows are the closest topics pairs.
     dist : np.ndarray
-        Kullback-Leibler (if ``method`` is set to ``klb``) or Jaccard index
-        values corresponding to the matrix of the closest topics.
+        Closest topics distances (e.g., Kullback-Leibler or Jaccard index
+        values). Shape of this array corresponds to the shape of the first
+        returned argument.
 
     Example
     -------

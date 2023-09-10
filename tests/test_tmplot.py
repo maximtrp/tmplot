@@ -3,6 +3,7 @@ import pickle as pkl
 from altair import LayerChart
 from tomotopy import LDAModel
 from src import tmplot as tm
+from numpy import random
 
 
 class TestTmplot(unittest.TestCase):
@@ -59,8 +60,29 @@ class TestTmplot(unittest.TestCase):
 
     def test_plot_scatter_topics(self):
         topics_coords = tm.prepare_coords(self.tomotopy_model)
-        chart = tm.plot_scatter_topics(topics_coords, size_col='size', label_col='label')
+        chart = tm.plot_scatter_topics(
+            topics_coords, size_col='size', label_col='label')
         self.assertIsInstance(chart, LayerChart)
+
+    def test_get_stable_topics(self):
+        models = [
+            self.tomotopy_model, self.tomotopy_model, self.tomotopy_model,
+            self.tomotopy_model]
+        closest_topics, dists = tm.get_closest_topics(models)
+        dists = random.normal(0, 0.10, dists.shape).__abs__()
+        stable_topics, stable_dists = tm.get_stable_topics(
+            closest_topics, dists, norm=False)
+
+        self.assertTupleEqual(
+            closest_topics.shape, (self.tomotopy_model.k, len(models)))
+        self.assertTupleEqual(
+            dists.shape, (self.tomotopy_model.k, len(models)))
+        self.assertLessEqual(stable_topics.shape[0], self.tomotopy_model.k)
+        self.assertLessEqual(stable_dists.shape[0], self.tomotopy_model.k)
+        self.assertGreaterEqual(stable_topics.shape[0], 0)
+        self.assertGreaterEqual(stable_dists.shape[0], 0)
+        self.assertEqual(stable_topics.shape[1], len(models))
+        self.assertEqual(stable_dists.shape[1], len(models))
 
 
 if __name__ == '__main__':
