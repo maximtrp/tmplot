@@ -225,7 +225,7 @@ def get_top_docs(
     if all([model is None, theta is None]):
         raise ValueError("Please pass a model or a theta matrix to function")
 
-    if model and not theta:
+    if model and theta is not None:
         theta = get_theta(model, corpus=corpus).values
 
     def _select_docs(docs, theta, topic_id: int):

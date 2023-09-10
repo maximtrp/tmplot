@@ -75,7 +75,6 @@ def get_closest_topics(
     model_ref_phi = get_phi(model_ref)
 
     # Number of topics
-    print(type(model_ref_phi))
     topics_num = model_ref_phi.shape[1]
 
     # Array with the closest topics ids
@@ -105,7 +104,7 @@ def get_closest_topics(
         for t_ref in range(topics_num):
             for t in range(topics_num):
                 all_vs_all_dists[t_ref, t] = dist_func(
-                    model_ref_phi.iloc[t_ref, :], get_phi(model).iloc[t, :])
+                    model_ref_phi.iloc[:, t_ref], get_phi(model).iloc[:, t])
 
         # Creating two arrays for the closest topics ids and distance values
         if method == "jac":
