@@ -3,7 +3,9 @@ import pickle as pkl
 from altair import LayerChart
 from tomotopy import LDAModel
 from src import tmplot as tm
-from numpy import random
+from numpy import random, floating
+from ipywidgets import VBox
+from pandas import DataFrame, Series
 
 
 class TestTmplot(unittest.TestCase):
@@ -58,6 +60,45 @@ class TestTmplot(unittest.TestCase):
         topics_coords = tm.prepare_coords(self.tomotopy_model)
         self.assertTupleEqual(topics_coords.shape, (self.tomotopy_model.k, 5))
 
+    def test_get_topics_scatter(self):
+        topics_dists = tm.get_topics_dist(self.phi)
+        methods = ['sem', 'mds', 'lle', 'ltsa', 'isomap']
+        topics_scatters = list(map(
+            lambda method:
+                tm.get_topics_scatter(topics_dists, self.theta, method=method),
+            methods
+        ))
+        for scatter in topics_scatters:
+            self.assertTupleEqual(scatter.shape, (self.tomotopy_model.k, 4))
+
+    def test_get_topics_dist(self):
+        methods = ["klb", "jsd", "jef", "hel", "bhat", "tv", "jac"]
+        topics_dists = list(
+            map(
+                lambda method: tm.get_topics_dist(self.phi, method=method),
+                methods)
+        )
+        for dist in topics_dists:
+            self.assertTupleEqual(
+                dist.shape,
+                (self.tomotopy_model.k, self.tomotopy_model.k))
+
+    def test_calc_topics_marg_probs(self):
+        topic_marg_prob = tm.calc_topics_marg_probs(self.theta, 0)
+        self.assertIsInstance(topic_marg_prob, floating)
+        self.assertGreater(topic_marg_prob, 0)
+        topics_marg_probs = tm.calc_topics_marg_probs(self.theta)
+        self.assertIsInstance(topics_marg_probs, Series)
+        self.assertEqual(topics_marg_probs.size, self.tomotopy_model.k)
+
+    def test_calc_terms_marg_probs(self):
+        term_marg_prob = tm.calc_terms_marg_probs(self.phi, 0)
+        self.assertIsInstance(term_marg_prob, floating)
+        self.assertGreater(term_marg_prob, 0)
+        terms_marg_probs = tm.calc_terms_marg_probs(self.phi)
+        self.assertIsInstance(terms_marg_probs, Series)
+        self.assertEqual(terms_marg_probs.size, self.phi.index.size)
+
     def test_plot_scatter_topics(self):
         topics_coords = tm.prepare_coords(self.tomotopy_model)
         chart = tm.plot_scatter_topics(
@@ -83,6 +124,17 @@ class TestTmplot(unittest.TestCase):
         self.assertGreaterEqual(stable_dists.shape[0], 0)
         self.assertEqual(stable_topics.shape[1], len(models))
         self.assertEqual(stable_dists.shape[1], len(models))
+
+    def test_report(self):
+        report = tm.report(
+            self.tomotopy_model,
+            docs=tm.get_docs(self.tomotopy_model),
+            width=250)
+        self.assertIsInstance(report, VBox)
+
+    def test_entropy(self):
+        entropy = tm.entropy(self.phi.T)
+        self.assertGreater(entropy, 0)
 
 
 if __name__ == '__main__':

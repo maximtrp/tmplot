@@ -258,7 +258,7 @@ def calc_topics_marg_probs(
     Union[pandas.DataFrame, numpy.ndarray]
         Marginal topics probabilities.
     """
-    if topic_id:
+    if topic_id is not None:
         if isinstance(theta, ndarray):
             return theta[topic_id, :].sum()
         elif isinstance(theta, DataFrame):
@@ -284,7 +284,7 @@ def calc_terms_marg_probs(
     Union[numpy.ndarray, pandas.Series]
         Marginal terms probabilities.
     """
-    if word_id:
+    if word_id is not None:
         if isinstance(phi, ndarray):
             return phi[word_id, :].sum()
         elif isinstance(phi, DataFrame):
