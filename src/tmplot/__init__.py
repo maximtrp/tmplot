@@ -5,4 +5,4 @@ from ._stability import *  # noqa: F401, F403
 from ._vis import *  # noqa: F401, F403
 from ._metrics import *  # noqa: F401, F403
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'

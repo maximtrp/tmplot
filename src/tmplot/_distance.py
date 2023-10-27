@@ -152,7 +152,7 @@ def get_topics_scatter(
         method_kws.setdefault('init', 'pca')
         method_kws.setdefault('learning_rate', 'auto')
         method_kws.setdefault(
-            'perplexity', min(50, max(topic_dists.shape[0] // 2, 5)))
+            'perplexity', min(50, max(topic_dists.shape[0] // 2, 1)))
         transformer = TSNE(**method_kws)
 
     elif method == 'sem':
@@ -161,6 +161,7 @@ def get_topics_scatter(
 
     elif method == 'mds':
         method_kws.setdefault('dissimilarity', 'precomputed')
+        method_kws.setdefault('normalized_stress', 'auto')
         transformer = MDS(**method_kws)
 
     elif method == 'lle':

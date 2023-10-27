@@ -96,26 +96,26 @@ def _is_tomotopy(model: object) -> bool:
             tomotopyLDA, tomotopyLLDA, tomotopyCT, tomotopyDMR, tomotopyHDP,
             tomotopyPT, tomotopySLDA, tomotopyGDMR]
         return any(map(partial(isinstance, model), tomotopy_models))
-    else:
-        __warn_package_installation("tomotopy")
-        return False
+
+    __warn_package_installation("tomotopy")
+    return False
 
 
 def _is_gensim(model: object) -> bool:
     if gensim_installed:
         gensim_models = [gensimLDA, gensimLDAMC]
         return any(map(partial(isinstance, model), gensim_models))
-    else:
-        __warn_package_installation("gensim")
-        return False
+
+    __warn_package_installation("gensim")
+    return False
 
 
 def _is_btmplus(model: object) -> bool:
     if bitermplus_installed:
         return isinstance(model, BTM)
-    else:
-        __warn_package_installation("bitermplus")
-        return False
+
+    __warn_package_installation("bitermplus")
+    return False
 
 
 def get_theta(
@@ -261,10 +261,10 @@ def calc_topics_marg_probs(
     if topic_id is not None:
         if isinstance(theta, ndarray):
             return theta[topic_id, :].sum()
-        elif isinstance(theta, DataFrame):
+        if isinstance(theta, DataFrame):
             return theta.iloc[topic_id, :].sum()
-    else:
-        return theta.sum(axis=1)
+
+    return theta.sum(axis=1)
 
 
 def calc_terms_marg_probs(
@@ -287,10 +287,10 @@ def calc_terms_marg_probs(
     if word_id is not None:
         if isinstance(phi, ndarray):
             return phi[word_id, :].sum()
-        elif isinstance(phi, DataFrame):
+        if isinstance(phi, DataFrame):
             return phi.iloc[word_id, :].sum()
-    else:
-        return phi.sum(axis=1)
+
+    return phi.sum(axis=1)
 
 
 def get_salient_terms(
@@ -323,12 +323,12 @@ def get_salient_terms(
     def _p_tw(phi, w, t):
         return phi[w, t] * p_t[t] / p_w[w]
 
-    saliency = array([
-        terms_freqs[w] * sum([
+    saliency = array((
+        terms_freqs[w] * sum((
             _p_tw(phi, w, t) * log(_p_tw(phi, w, t) / p_t[t])
-            for t in range(phi.shape[1])])
+            for t in range(phi.shape[1])))
         for w in range(phi.shape[0])
-    ])
+    ))
     # saliency(term w) = frequency(w)
     # * [sum_t p(t | w) * log(p(t | w)/p(t))] for topics t
     # p(t | w) = p(w | t) * p(t) / p(w)

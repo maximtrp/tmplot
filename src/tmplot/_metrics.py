@@ -1,8 +1,7 @@
-__all__ = [
-    'entropy']
 """Metrics module"""
 from math import log
 import numpy as np
+__all__ = ['entropy']
 
 
 def entropy(phi: np.ndarray, max_probs: bool = False):

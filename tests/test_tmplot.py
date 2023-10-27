@@ -5,7 +5,7 @@ from tomotopy import LDAModel
 from src import tmplot as tm
 from numpy import random, floating
 from ipywidgets import VBox
-from pandas import DataFrame, Series
+from pandas import Series
 
 
 class TestTmplot(unittest.TestCase):
@@ -16,9 +16,16 @@ class TestTmplot(unittest.TestCase):
             self.gensim_model = pkl.load(file)
         with open('tests/models/gensimLDA.corpus', 'rb') as file:
             self.gensim_corpus = pkl.load(file)
+        with open('tests/models/btm_big.pickle', 'rb') as file:
+            self.btm_model_big = pkl.load(file)
+        with open('tests/models/btm_small.pickle', 'rb') as file:
+            self.btm_model_small = pkl.load(file)
 
         self.phi = tm.get_phi(self.tomotopy_model)
         self.theta = tm.get_theta(self.tomotopy_model)
+
+    def test_is_btmplus(self):
+        self.assertTrue(tm._helpers._is_btmplus(self.btm_model_big))
 
     def test_is_tomotopy(self):
         self.assertTrue(tm._helpers._is_tomotopy(self.tomotopy_model))
@@ -59,10 +66,14 @@ class TestTmplot(unittest.TestCase):
     def test_prepare_coords(self):
         topics_coords = tm.prepare_coords(self.tomotopy_model)
         self.assertTupleEqual(topics_coords.shape, (self.tomotopy_model.k, 5))
+        topics_coords = tm.prepare_coords(self.btm_model_big)
+        self.assertTupleEqual(topics_coords.shape, (self.btm_model_big.topics_num_, 5))
+        topics_coords = tm.prepare_coords(self.btm_model_small)
+        self.assertTupleEqual(topics_coords.shape, (self.btm_model_small.topics_num_, 5))
 
     def test_get_topics_scatter(self):
         topics_dists = tm.get_topics_dist(self.phi)
-        methods = ['sem', 'mds', 'lle', 'ltsa', 'isomap']
+        methods = ['tsne', 'sem', 'mds', 'lle', 'ltsa', 'isomap']
         topics_scatters = list(map(
             lambda method:
                 tm.get_topics_scatter(topics_dists, self.theta, method=method),
