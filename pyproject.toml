@@ -42,7 +42,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest", "codecov", "coverage"]
+test = ["pytest", "coverage"]
 models = ["tomotopy>=0.8.0", "gensim", "bitermplus"]
 
 [tool.setuptools.dynamic]
