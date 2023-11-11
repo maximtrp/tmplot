@@ -1,7 +1,7 @@
 # tmplot
 
-![Codacy coverage](https://img.shields.io/codacy/coverage/5939b1cf99bc4f9d91de11c0d3ff9e50)
-![Codacy grade](https://img.shields.io/codacy/grade/5939b1cf99bc4f9d91de11c0d3ff9e50)
+[![Codacy coverage](https://img.shields.io/codacy/coverage/5939b1cf99bc4f9d91de11c0d3ff9e50)](https://app.codacy.com/gh/maximtrp/tmplot/coverage)
+[![Codacy grade](https://img.shields.io/codacy/grade/5939b1cf99bc4f9d91de11c0d3ff9e50)](https://app.codacy.com/gh/maximtrp/tmplot)
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/maximtrp/tmplot/python-package.yml?label=tests)](https://github.com/maximtrp/tmplot/actions/workflows/python-package.yml)
 [![Documentation Status](https://readthedocs.org/projects/tmplot/badge/?version=latest)](https://tmplot.readthedocs.io/en/latest/?badge=latest)
 [![Downloads](https://static.pepy.tech/badge/tmplot)](https://pepy.tech/project/tmplot)
