@@ -145,7 +145,9 @@ class TestTmplot(unittest.TestCase):
 
     def test_entropy(self):
         entropy = tm.entropy(self.phi.T)
+        entropy2 = tm.entropy(self.phi.T, max_probs=True)
         self.assertGreater(entropy, 0)
+        self.assertGreater(entropy2, 0)
 
 
 if __name__ == '__main__':
