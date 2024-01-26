@@ -10,6 +10,7 @@ from typing import Union, Optional, Sequence, List
 from functools import partial
 from math import log
 from numpy import ndarray, zeros, argsort, array, arange, vstack
+from numpy import log as nplog
 from pandas import concat, Series, DataFrame
 
 tomotopy_installed = find_spec('tomotopy')
@@ -367,7 +368,7 @@ def calc_terms_probs_ratio(
     pandas.DataFrame
         Words conditional and marginal probabilities.
     """
-    p_cond_name = 'Conditional term probability, p(w|t)'
+    p_cond_name = 'Conditional term probability, p(w | t)'
     p_cond = phi.iloc[:, topic]\
         .rename(p_cond_name)\
         if isinstance(phi, DataFrame)\
@@ -424,7 +425,8 @@ def get_relevant_terms(
     phi_topic = phi.iloc[:, topic]\
         if isinstance(phi, DataFrame)\
         else phi[:, topic]
-    # relevance = lambda * p(w | t) + (1 - lambda) * p(w | t)/p(w)
-    relevance = lambda_ * phi_topic\
-        + (1 - lambda_) * phi_topic / phi.sum(axis=1)
+
+    # relevance = lambda * log(p(w | t)) + (1 - lambda) * log(p(w | t) / p(w))
+    relevance = lambda_ * nplog(phi_topic)\
+        + (1 - lambda_) * nplog(phi_topic / phi.sum(axis=1))
     return relevance.sort_values(ascending=False)
