@@ -38,6 +38,12 @@
   - LocallyLinearEmbedding
   - Isomap
 
+## Donate
+
+If you find this package useful, please consider donating any amount of money. This will help me spend more time on supporting open-source software.
+
+<a href="https://www.buymeacoffee.com/maximtrp" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
 ## Installation
 
 The package can be installed from PyPi:
