@@ -159,23 +159,29 @@ def report(
     # Topic selection
     def _on_select_topic(sel):
         topic = sel['new']
-        topics_plot_output.clear_output(wait=False)
-        words_plot_output.clear_output(wait=False)
-        docs_plot_output.clear_output(wait=False)
-        with words_plot_output:
-            terms_probs = calc_terms_probs_ratio(
-                phi, topic=topic, lambda_=lambda_slider.value)
-            _words_kws.update({'terms_probs': terms_probs})
-            display(plot_terms(**_words_kws))
-        with topics_plot_output:
-            _topics_kws.update({'topic': topic})
-            display(plot_scatter_topics(**_topics_kws))
-        with docs_plot_output:
-            _top_docs_kws.update({'topics': [sel['new']]})
-            top_docs = get_top_docs(**_top_docs_kws)
-            top_docs.columns = ['']
-            _docs_kws.update({'docs': top_docs})
-            display(plot_docs(**_docs_kws))
+
+        if show_words:
+            words_plot_output.clear_output(wait=False)
+            with words_plot_output:
+                terms_probs = calc_terms_probs_ratio(
+                    phi, topic=topic, lambda_=lambda_slider.value)
+                _words_kws.update({'terms_probs': terms_probs})
+                display(plot_terms(**_words_kws))
+
+        if show_topics:
+            topics_plot_output.clear_output(wait=False)
+            with topics_plot_output:
+                _topics_kws.update({'topic': topic})
+                display(plot_scatter_topics(**_topics_kws))
+
+        if show_docs:
+            docs_plot_output.clear_output(wait=False)
+            with docs_plot_output:
+                _top_docs_kws.update({'topics': [sel['new']]})
+                top_docs = get_top_docs(**_top_docs_kws)
+                top_docs.columns = ['']
+                _docs_kws.update({'docs': top_docs})
+                display(plot_docs(**_docs_kws))
 
     topics_ids = list(range(len(_topics_kws['topics_coords'])))
     topics_labels = topics_labels or topics_ids
