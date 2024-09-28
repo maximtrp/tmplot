@@ -1,13 +1,17 @@
-__all__ = [
-    'get_topics_dist', 'get_topics_scatter', 'get_top_topic_words']
-from typing import Union, List
+__all__ = ["get_topics_dist", "get_topics_scatter", "get_top_topic_words"]
+from typing import Optional, Union, List
 from itertools import combinations
-from pandas import DataFrame
+from pandas import DataFrame, Index
 import numpy as np
 from scipy.special import kl_div
 from scipy.spatial import distance
 from sklearn.manifold import (
-    TSNE, Isomap, LocallyLinearEmbedding, MDS, SpectralEmbedding)
+    TSNE,
+    Isomap,
+    LocallyLinearEmbedding,
+    MDS,
+    SpectralEmbedding,
+)
 from ._helpers import calc_topics_marg_probs
 
 
@@ -28,15 +32,14 @@ def _dist_jsd(a1: np.ndarray, a2: np.ndarray):
 
 def _dist_jef(a1: np.ndarray, a2: np.ndarray):
     vals = (a1 - a2) * (np.log(a1) - np.log(a2))
-    vals[(vals <= 0) | ~np.isfinite(vals)] = 0.
+    vals[(vals <= 0) | ~np.isfinite(vals)] = 0.0
     return vals.sum()
 
 
 def _dist_hel(a1: np.ndarray, a2: np.ndarray):
     a1[(a1 <= 0) | ~np.isfinite(a1)] = 1e-64
     a2[(a2 <= 0) | ~np.isfinite(a2)] = 1e-64
-    hel_val = distance.euclidean(
-        np.sqrt(a1), np.sqrt(a2)) / np.sqrt(2)
+    hel_val = distance.euclidean(np.sqrt(a1), np.sqrt(a2)) / np.sqrt(2)
     return hel_val
 
 
@@ -52,9 +55,9 @@ def _dist_tv(a1: np.ndarray, a2: np.ndarray):
     return dist
 
 
-def _dist_jac(a1: np.ndarray, a2: np.ndarray,  top_words=100):
-    a = np.argsort(a1)[:-top_words-1:-1]
-    b = np.argsort(a2)[:-top_words-1:-1]
+def _dist_jac(a1: np.ndarray, a2: np.ndarray, top_words=100):
+    a = np.argsort(a1)[: -top_words - 1 : -1]
+    b = np.argsort(a2)[: -top_words - 1 : -1]
     j_num = np.intersect1d(a, b, assume_unique=False).size
     j_den = np.union1d(a, b).size
     jac_val = 1 - j_num / j_den
@@ -62,9 +65,8 @@ def _dist_jac(a1: np.ndarray, a2: np.ndarray,  top_words=100):
 
 
 def get_topics_dist(
-        phi: Union[np.ndarray, DataFrame],
-        method: str = "sklb",
-        **kwargs) -> np.ndarray:
+    phi: Union[np.ndarray, DataFrame], method: str = "sklb", **kwargs
+) -> np.ndarray:
     """Finding closest topics in models.
 
     Parameters
@@ -110,16 +112,18 @@ def get_topics_dist(
     for i, j in topics_pairs:
         _dist_func = dist_funcs.get(method, "sklb")
         topics_dists[((i, j), (j, i))] = _dist_func(
-            phi_copy[:, i], phi_copy[:, j], **kwargs)
+            phi_copy[:, i], phi_copy[:, j], **kwargs
+        )
 
     return topics_dists
 
 
 def get_topics_scatter(
-        topic_dists: np.ndarray,
-        theta: np.ndarray,
-        method: str = 'tsne',
-        method_kws: dict = None) -> DataFrame:
+    topic_dists: np.ndarray,
+    theta: np.ndarray,
+    method: str = "tsne",
+    method_kws: Optional[dict] = None,
+) -> DataFrame:
     """Calculate topics coordinates for a scatter plot.
 
     Parameters
@@ -146,52 +150,52 @@ def get_topics_scatter(
         Topics scatter coordinates.
     """
     if not method_kws:
-        method_kws = {'n_components': 2}
+        method_kws = {"n_components": 2}
 
-    if method == 'tsne':
-        method_kws.setdefault('init', 'pca')
-        method_kws.setdefault('learning_rate', 'auto')
-        method_kws.setdefault(
-            'perplexity', min(50, max(topic_dists.shape[0] // 2, 1)))
+    if method == "tsne":
+        method_kws.setdefault("init", "pca")
+        method_kws.setdefault("learning_rate", "auto")
+        method_kws.setdefault("perplexity", min(50, max(topic_dists.shape[0] // 2, 1)))
         transformer = TSNE(**method_kws)
 
-    elif method == 'sem':
-        method_kws.setdefault('affinity', 'precomputed')
+    elif method == "sem":
+        method_kws.setdefault("affinity", "precomputed")
         transformer = SpectralEmbedding(**method_kws)
 
-    elif method == 'mds':
-        method_kws.setdefault('dissimilarity', 'precomputed')
-        method_kws.setdefault('normalized_stress', 'auto')
+    elif method == "mds":
+        method_kws.setdefault("dissimilarity", "precomputed")
+        method_kws.setdefault("normalized_stress", "auto")
         transformer = MDS(**method_kws)
 
-    elif method == 'lle':
-        method_kws['method'] = 'standard'
+    elif method == "lle":
+        method_kws["method"] = "standard"
         transformer = LocallyLinearEmbedding(**method_kws)
 
-    elif method == 'ltsa':
-        method_kws['method'] = 'ltsa'
+    elif method == "ltsa":
+        method_kws["method"] = "ltsa"
         transformer = LocallyLinearEmbedding(**method_kws)
 
-    elif method == 'isomap':
+    elif method == "isomap":
         transformer = Isomap(**method_kws)
 
     coords = transformer.fit_transform(topic_dists)
 
-    topics_xy = DataFrame(coords, columns=['x', 'y'])
-    topics_xy['topic'] = topics_xy.index.astype(int)
-    topics_xy['size'] = calc_topics_marg_probs(theta)
-    size_sum = topics_xy['size'].sum()
+    topics_xy = DataFrame(coords, columns=Index(["x", "y"]))
+    topics_xy["topic"] = topics_xy.index.astype(int)
+    topics_xy["size"] = calc_topics_marg_probs(theta)
+    size_sum = topics_xy["size"].sum()
     if size_sum > 0:
-        topics_xy['size'] *= (100 / topics_xy['size'].sum())
+        topics_xy["size"] *= 100 / topics_xy["size"].sum()
     else:
-        topics_xy['size'] = np.nan
+        topics_xy["size"] = np.nan
     return topics_xy
 
 
 def get_top_topic_words(
-        phi: DataFrame,
-        words_num: int = 20,
-        topics_idx: Union[List[int], np.ndarray] = None) -> DataFrame:
+    phi: DataFrame,
+    words_num: int = 20,
+    topics_idx: Optional[Union[List[int], np.ndarray]] = None,
+) -> DataFrame:
     """Select top topic words from a fitted model.
 
     Parameters
@@ -209,9 +213,6 @@ def get_top_topic_words(
     DataFrame
         Words with highest probabilities in all (or selected) topics.
     """
-    return phi.loc[:, topics_idx or phi.columns]\
-        .apply(
-            lambda x: x
-            .sort_values(ascending=False)
-            .head(words_num).index, axis=0
+    return phi.loc[:, topics_idx or phi.columns].apply(
+        lambda x: x.sort_values(ascending=False).head(words_num).index, axis=0
     )

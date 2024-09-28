@@ -1,9 +1,17 @@
-__all__ = ['get_closest_topics', 'get_stable_topics']
+__all__ = ["get_closest_topics", "get_stable_topics"]
 from typing import List, Tuple, Any
 import numpy as np
 import tqdm
-from ._distance import _dist_klb, _dist_sklb, _dist_jsd, _dist_jef, _dist_hel, \
-    _dist_bhat, _dist_jac, _dist_tv
+from ._distance import (
+    _dist_klb,
+    _dist_sklb,
+    _dist_jsd,
+    _dist_jef,
+    _dist_hel,
+    _dist_bhat,
+    _dist_jac,
+    _dist_tv,
+)
 from ._helpers import get_phi
 
 dist_funcs = {
@@ -19,11 +27,12 @@ dist_funcs = {
 
 
 def get_closest_topics(
-        models: List[Any],
-        ref: int = 0,
-        method: str = "sklb",
-        top_words: int = 100,
-        verbose: bool = True) -> Tuple[np.ndarray, np.ndarray]:
+    models: List[Any],
+    ref: int = 0,
+    method: str = "sklb",
+    top_words: int = 100,
+    verbose: bool = True,
+) -> Tuple[np.ndarray, np.ndarray]:
     """Finding closest topics in models.
 
     Parameters
@@ -93,7 +102,6 @@ def get_closest_topics(
 
     # Iterating over all models
     for mid, model in enum_func(models):
-
         # Current model is equal to reference model, skipping
         if mid == ref:
             continue
@@ -105,7 +113,8 @@ def get_closest_topics(
         for t_ref in range(topics_num):
             for t in range(topics_num):
                 all_vs_all_dists[t_ref, t] = dist_func(
-                    model_ref_phi.iloc[:, t_ref], get_phi(model).iloc[:, t])
+                    model_ref_phi.iloc[:, t_ref], get_phi(model).iloc[:, t]
+                )
 
         # Creating two arrays for the closest topics ids and distance values
         if method == "jac":
@@ -119,14 +128,15 @@ def get_closest_topics(
 
 
 def get_stable_topics(
-        closest_topics: np.ndarray,
-        dist: np.ndarray,
-        norm: bool = True,
-        inverse: bool = True,
-        inverse_factor: float = 1.0,
-        ref: int = 0,
-        thres: float = 0.9,
-        thres_models: int = 2) -> Tuple[np.ndarray, np.ndarray]:
+    closest_topics: np.ndarray,
+    dist: np.ndarray,
+    norm: bool = True,
+    inverse: bool = True,
+    inverse_factor: float = 1.0,
+    ref: int = 0,
+    thres: float = 0.9,
+    thres_models: int = 2,
+) -> Tuple[np.ndarray, np.ndarray]:
     """Finding stable topics in models.
 
     Parameters
@@ -179,7 +189,5 @@ def get_stable_topics(
     dist_arr = np.asarray(dist)
     dist_ready = dist_arr / dist_arr.max() if norm else dist_arr.copy()
     dist_ready = inverse_factor - dist_ready if inverse else dist_ready
-    mask = (
-        np.sum(np.delete(dist_ready, ref, axis=1) >= thres, axis=1)
-        >= thres_models)
+    mask = np.sum(np.delete(dist_ready, ref, axis=1) >= thres, axis=1) >= thres_models
     return closest_topics[mask], dist_ready[mask]
