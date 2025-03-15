@@ -249,7 +249,7 @@ def get_top_docs(
 
 def calc_topics_marg_probs(
     theta: Union[DataFrame, ndarray], topic_id: Optional[int] = None
-) -> Union[DataFrame, ndarray]:
+) -> ndarray:
     """Calculate marginal topics probabilities.
 
     Parameters
@@ -264,18 +264,18 @@ def calc_topics_marg_probs(
     Union[pandas.DataFrame, numpy.ndarray]
         Marginal topics probabilities.
     """
+    p_t = array(theta).sum(axis=1)
+    p_t /= p_t.sum()
     if topic_id is not None:
-        if isinstance(theta, ndarray):
-            return theta[topic_id, :].sum()
-        if isinstance(theta, DataFrame):
-            return theta.iloc[topic_id, :].sum()
-
-    return theta.sum(axis=1)
+        return p_t[topic_id]
+    return p_t
 
 
 def calc_terms_marg_probs(
-    phi: Union[ndarray, DataFrame], word_id: Optional[int] = None
-) -> Union[ndarray, Series]:
+    phi: Union[ndarray, DataFrame],
+    p_t: Union[ndarray, Series],
+    word_id: Optional[int] = None,
+) -> ndarray:
     """Calculate marginal terms probabilities.
 
     Parameters
@@ -290,16 +290,13 @@ def calc_terms_marg_probs(
     Union[numpy.ndarray, pandas.Series]
         Marginal terms probabilities.
     """
+    p_w = (array(phi) * array(p_t)).sum(axis=1)
     if word_id is not None:
-        if isinstance(phi, ndarray):
-            return phi[word_id, :].sum()
-        if isinstance(phi, DataFrame):
-            return phi.iloc[word_id, :].sum()
-
-    return phi.sum(axis=1)
+        return p_w[word_id]
+    return p_w
 
 
-def get_salient_terms(terms_freqs: ndarray, phi: ndarray, theta: ndarray) -> ndarray:
+def get_salient_terms(phi: ndarray, theta: ndarray) -> ndarray:
     """Get salient terms.
 
     Calculated as:
@@ -308,8 +305,6 @@ def get_salient_terms(terms_freqs: ndarray, phi: ndarray, theta: ndarray) -> nda
 
     Parameters
     ----------
-    terms_freqs : numpy.ndarray
-        Words frequencies.
     phi : numpy.ndarray
         Words vs topics matrix.
     theta : numpy.ndarray
@@ -320,15 +315,15 @@ def get_salient_terms(terms_freqs: ndarray, phi: ndarray, theta: ndarray) -> nda
     numpy.ndarray
         Terms saliency values.
     """
-    p_t = array(calc_topics_marg_probs(theta))
-    p_w = array(calc_terms_marg_probs(phi))
+    p_t = calc_topics_marg_probs(theta)
+    p_w = calc_terms_marg_probs(phi, p_t)
 
     def _p_tw(phi, w, t):
         return phi[w, t] * p_t[t] / p_w[w]
 
     saliency = array(
         (
-            terms_freqs[w]
+            p_w[w]
             * sum(
                 (
                     _p_tw(phi, w, t) * log(_p_tw(phi, w, t) / p_t[t])
