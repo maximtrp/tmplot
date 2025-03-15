@@ -105,10 +105,14 @@ class TestTmplot(unittest.TestCase):
         self.assertEqual(topics_marg_probs.sum(), 1)
 
     def test_calc_terms_marg_probs(self):
-        term_marg_prob = tm.calc_terms_marg_probs(self.phi, 0)
+        term_marg_prob = tm.calc_terms_marg_probs(
+            self.phi, tm.calc_topics_marg_probs(self.theta), 0
+        )
         self.assertIsInstance(term_marg_prob, floating)
         self.assertGreater(term_marg_prob, 0)
-        terms_marg_probs = tm.calc_terms_marg_probs(self.phi)
+        terms_marg_probs = tm.calc_terms_marg_probs(
+            self.phi, tm.calc_topics_marg_probs(self.theta)
+        )
         self.assertIsInstance(terms_marg_probs, ndarray)
         self.assertEqual(terms_marg_probs.size, self.phi.index.size)
 
