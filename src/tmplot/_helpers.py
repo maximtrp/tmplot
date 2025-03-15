@@ -319,10 +319,10 @@ def get_salient_terms(phi: ndarray, theta: ndarray) -> ndarray:
     p_w = calc_terms_marg_probs(phi, p_t)
 
     def _p_tw(phi, w, t):
-        return phi[w, t] * p_t[t] / p_w[w]
+        return array(phi)[w, t] * p_t[t] / p_w[w]
 
     saliency = array(
-        (
+        [
             p_w[w]
             * sum(
                 (
@@ -331,7 +331,7 @@ def get_salient_terms(phi: ndarray, theta: ndarray) -> ndarray:
                 )
             )
             for w in range(phi.shape[0])
-        )
+        ]
     )
     # saliency(term w) = frequency(w)
     # * [sum_t p(t | w) * log(p(t | w)/p(t))] for topics t
