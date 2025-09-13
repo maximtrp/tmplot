@@ -38,17 +38,17 @@
 
 ### Distance Metrics
 
-- **Kullback-Leibler** (symmetric & non-symmetric)
-- **Jensen-Shannon divergence**
-- **Jeffrey's divergence**
-- **Hellinger & Bhattacharyya distances**
-- **Total variation distance**
-- **Jaccard index**
+- Kullback-Leibler (symmetric & non-symmetric)
+- Jensen-Shannon divergence
+- Jeffrey's divergence
+- Hellinger & Bhattacharyya distances
+- Total variation distance
+- Jaccard index
 
 ### Dimensionality Reduction
 
-- **t-SNE** • **SpectralEmbedding** • **MDS**
-- **LocallyLinearEmbedding** • **Isomap**
+- t-SNE • SpectralEmbedding • MDS
+- LocallyLinearEmbedding\*\* • Isomap
 
 ## Donate
 
@@ -87,7 +87,7 @@ tmp.plot_scatter_topics(coords, size_col='size')
 
 ## Advanced Examples
 
-### Compare Multiple Models
+### Get Stable Topics
 
 ```python
 import tmplot as tmp
@@ -98,7 +98,7 @@ closest_topics, distances = tmp.get_closest_topics(models)
 stable_topics, stable_distances = tmp.get_stable_topics(closest_topics, distances)
 ```
 
-### Model Optimization
+### Analyze Model
 
 ```python
 # Calculate entropy for model selection
@@ -108,7 +108,7 @@ entropy_score = tmp.entropy(phi_matrix)
 saliency = tmp.get_salient_terms(phi, theta)
 ```
 
-### Custom Visualizations
+### Visualize
 
 ```python
 # Create topic distance matrix with different metrics
@@ -121,11 +121,12 @@ tmp.plot_scatter_topics(coords, topic=3)  # Highlight topic 3
 
 ## Documentation & Examples
 
-- **[Complete Tutorial](https://tmplot.readthedocs.io/en/latest/tutorial.html)** - Step-by-step guide
-- **[API Reference](https://tmplot.readthedocs.io/)** - Full documentation
-- **[Example Notebooks](https://github.com/maximtrp/tmplot/tree/main/examples)** - Jupyter examples
+- [Complete Tutorial](https://tmplot.readthedocs.io/en/latest/tutorial.html) - Step-by-step guide
+- [API Reference](https://tmplot.readthedocs.io/) - Full documentation
+- [Example Notebooks](https://github.com/maximtrp/tmplot/tree/main/examples) - Jupyter examples
 
 ## Requirements
 
 **Core dependencies:** `numpy`, `scipy`, `scikit-learn`, `pandas`, `altair`, `ipywidgets`
+
 **Optional models:** `tomotopy`, `gensim`, `bitermplus`
