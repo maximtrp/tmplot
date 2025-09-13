@@ -105,6 +105,9 @@ def report(
     ipywidgets.widgets.widget_box.VBox
         Report interface as a VBox instance.
     """
+    # Input validation
+    if not docs or len(docs) == 0:
+        raise ValueError("docs cannot be empty")
 
     _topics_kws = (
         {"chart_kws": {"height": height, "width": width}}
@@ -117,7 +120,7 @@ def report(
         if not words_kws
         else deepcopy(words_kws)
     )
-    _top_docs_kws = {} if not docs_kws else deepcopy(top_docs_kws)
+    _top_docs_kws = {} if not top_docs_kws else deepcopy(top_docs_kws)
     _docs_kws = {} if not docs_kws else deepcopy(docs_kws)
 
     # Headers init
@@ -162,8 +165,10 @@ def report(
             }
         )
 
+    # Cache phi matrix to avoid repeated calls
+    phi = get_phi(model)
+
     if "terms_probs" not in _words_kws:
-        phi = get_phi(model)
         terms_probs = calc_terms_probs_ratio(phi, topic=0)
         _words_kws.update({"terms_probs": terms_probs})
 

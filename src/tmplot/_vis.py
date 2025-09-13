@@ -128,11 +128,15 @@ def plot_scatter_topics(
             else {"condition": {"test": f"datum['topic'] == {topic}", "value": "red"}}
         )
 
-    data = (
-        DataFrame(topics_coords, columns=[x_col, y_col])
-        if isinstance(topics_coords, ndarray)
-        else topics_coords.copy()
-    )
+    # Input validation
+    if isinstance(topics_coords, ndarray):
+        if topics_coords.size == 0:
+            raise ValueError("topics_coords cannot be empty")
+        data = DataFrame(topics_coords, columns=[x_col, y_col])
+    else:
+        if topics_coords.empty:
+            raise ValueError("topics_coords DataFrame cannot be empty")
+        data = topics_coords.copy()
 
     if not topic_col:
         topic_col = "topic"
@@ -225,6 +229,13 @@ def plot_terms(
     altair.Chart
         Terms probabilities chart.
     """
+    # Input validation
+    if terms_probs.empty:
+        raise ValueError("terms_probs DataFrame cannot be empty")
+    required_cols = [x_col, y_col, color_col]
+    missing_cols = [col for col in required_cols if col not in terms_probs.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns: {missing_cols}")
     if not x_kws:
         x_kws = {"stack": None}
     if not y_kws:

@@ -21,12 +21,13 @@ def _dist_klb(a1: np.ndarray, a2: np.ndarray):
 
 
 def _dist_sklb(a1: np.ndarray, a2: np.ndarray):
-    dist = kl_div(a1, a2) + kl_div(a1, a2)
+    dist = kl_div(a1, a2) + kl_div(a2, a1)
     return dist[np.isfinite(dist)].sum()
 
 
 def _dist_jsd(a1: np.ndarray, a2: np.ndarray):
-    dist = 0.5 * kl_div(a1, a2) + 0.5 * kl_div(a1, a2)
+    m = 0.5 * (a1 + a2)
+    dist = 0.5 * kl_div(a1, m) + 0.5 * kl_div(a2, m)
     return dist[np.isfinite(dist)].sum()
 
 
@@ -36,16 +37,22 @@ def _dist_jef(a1: np.ndarray, a2: np.ndarray):
     return vals.sum()
 
 
+# Small value for numerical stability
+EPSILON = 1e-64
+
+
 def _dist_hel(a1: np.ndarray, a2: np.ndarray):
-    a1[(a1 <= 0) | ~np.isfinite(a1)] = 1e-64
-    a2[(a2 <= 0) | ~np.isfinite(a2)] = 1e-64
-    hel_val = distance.euclidean(np.sqrt(a1), np.sqrt(a2)) / np.sqrt(2)
+    a1_safe = a1.copy()
+    a2_safe = a2.copy()
+    a1_safe[(a1_safe <= 0) | ~np.isfinite(a1_safe)] = EPSILON
+    a2_safe[(a2_safe <= 0) | ~np.isfinite(a2_safe)] = EPSILON
+    hel_val = distance.euclidean(np.sqrt(a1_safe), np.sqrt(a2_safe)) / np.sqrt(2)
     return hel_val
 
 
 def _dist_bhat(a1: np.ndarray, a2: np.ndarray):
     pq = a1 * a2
-    pq[(pq <= 0) | ~np.isfinite(pq)] = 1e-64
+    pq[(pq <= 0) | ~np.isfinite(pq)] = EPSILON
     dist = -np.log(np.sum(np.sqrt(pq)))
     return dist
 
@@ -92,6 +99,14 @@ def get_topics_dist(
         Topics distances matrix.
     """
     phi_copy = np.array(phi)
+
+    if phi_copy.ndim != 2:
+        raise ValueError("phi must be a 2D array (words x topics)")
+    if np.any(phi_copy < 0):
+        raise ValueError("phi must contain non-negative probability values")
+    if not np.allclose(phi_copy.sum(axis=0), 1.0, atol=1e-6):
+        raise ValueError("phi columns must sum to 1 (probability distributions)")
+
     topics_num = phi_copy.shape[1]
     topics_pairs = combinations(range(topics_num), 2)
 
@@ -165,6 +180,7 @@ def get_topics_scatter(
     elif method == "mds":
         method_kws.setdefault("dissimilarity", "precomputed")
         method_kws.setdefault("normalized_stress", "auto")
+        method_kws.setdefault("n_init", 1)
         transformer = MDS(**method_kws)
 
     elif method == "lle":

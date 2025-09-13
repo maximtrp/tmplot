@@ -106,6 +106,9 @@ def get_closest_topics(
         if mid == ref:
             continue
 
+        # Get phi matrix for current model
+        current_phi = get_phi(model)
+
         # Distance matrix for all topic pairs
         all_vs_all_dists = np.zeros((topics_num, topics_num))
 
@@ -113,7 +116,7 @@ def get_closest_topics(
         for t_ref in range(topics_num):
             for t in range(topics_num):
                 all_vs_all_dists[t_ref, t] = dist_func(
-                    model_ref_phi.iloc[:, t_ref], get_phi(model).iloc[:, t]
+                    model_ref_phi.iloc[:, t_ref], current_phi.iloc[:, t]
                 )
 
         # Creating two arrays for the closest topics ids and distance values

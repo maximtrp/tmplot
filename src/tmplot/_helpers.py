@@ -156,6 +156,8 @@ def get_theta(model: object, corpus: Optional[List] = None) -> Optional[DataFram
     elif _is_gensim(model):
         if corpus is None:
             raise ValueError("`corpus` must be supplied for a gensim model")
+        if len(corpus) == 0:
+            raise ValueError("corpus cannot be empty")
         tdd = list(map(model.get_document_topics, corpus))
         theta = DataFrame(zeros((len(tdd), model.num_topics)))
         for doc_id, doc_topic in enumerate(tdd):
@@ -165,6 +167,8 @@ def get_theta(model: object, corpus: Optional[List] = None) -> Optional[DataFram
 
     elif _is_btmplus(model):
         theta = DataFrame(model.matrix_topics_docs_)
+    else:
+        raise ValueError(f"Unsupported model type: {type(model)}")
 
     if isinstance(theta, DataFrame):
         theta.index.name = "topics"
@@ -264,9 +268,19 @@ def calc_topics_marg_probs(
     Union[pandas.DataFrame, numpy.ndarray]
         Marginal topics probabilities.
     """
-    p_t = array(theta).sum(axis=1)
-    p_t /= p_t.sum()
+    theta_arr = array(theta)
+    if theta_arr.size == 0:
+        raise ValueError("theta matrix cannot be empty")
+
+    p_t = theta_arr.sum(axis=1)
+    total_sum = p_t.sum()
+    if total_sum == 0:
+        raise ValueError("theta matrix contains all zeros - cannot normalize")
+
+    p_t /= total_sum
     if topic_id is not None:
+        if topic_id < 0 or topic_id >= len(p_t):
+            raise IndexError(f"topic_id {topic_id} out of bounds for {len(p_t)} topics")
         return p_t[topic_id]
     return p_t
 
@@ -282,6 +296,8 @@ def calc_terms_marg_probs(
     ----------
     phi : Union[numpy.ndarray, pandas.DataFrame]
         Words vs topics matrix.
+    p_t : Union[numpy.ndarray, pandas.Series]
+        Topic marginal probabilities.
     word_id: Optional[int]
         Word index.
 
@@ -290,8 +306,20 @@ def calc_terms_marg_probs(
     Union[numpy.ndarray, pandas.Series]
         Marginal terms probabilities.
     """
-    p_w = (array(phi) * array(p_t)).sum(axis=1)
+    phi_arr = array(phi)
+    p_t_arr = array(p_t)
+
+    if phi_arr.size == 0:
+        raise ValueError("phi matrix cannot be empty")
+    if p_t_arr.size == 0:
+        raise ValueError("p_t array cannot be empty")
+    if phi_arr.shape[1] != p_t_arr.shape[0]:
+        raise ValueError(f"phi topics dimension {phi_arr.shape[1]} must match p_t length {p_t_arr.shape[0]}")
+
+    p_w = (phi_arr * p_t_arr).sum(axis=1)
     if word_id is not None:
+        if word_id < 0 or word_id >= len(p_w):
+            raise IndexError(f"word_id {word_id} out of bounds for {len(p_w)} words")
         return p_w[word_id]
     return p_w
 
@@ -315,10 +343,17 @@ def get_salient_terms(phi: ndarray, theta: ndarray) -> ndarray:
     numpy.ndarray
         Terms saliency values.
     """
+    if phi.size == 0 or theta.size == 0:
+        raise ValueError("phi and theta matrices cannot be empty")
+    if phi.shape[1] != theta.shape[0]:
+        raise ValueError(f"phi topics dimension {phi.shape[1]} must match theta topics dimension {theta.shape[0]}")
+
     p_t = calc_topics_marg_probs(theta)
     p_w = calc_terms_marg_probs(phi, p_t)
 
     def _p_tw(phi, w, t):
+        if p_w[w] == 0:
+            return 0  # Avoid division by zero
         return array(phi)[w, t] * p_t[t] / p_w[w]
 
     saliency = array(
@@ -327,6 +362,8 @@ def get_salient_terms(phi: ndarray, theta: ndarray) -> ndarray:
             * sum(
                 (
                     _p_tw(phi, w, t) * log(_p_tw(phi, w, t) / p_t[t])
+                    if _p_tw(phi, w, t) > 0 and p_t[t] > 0
+                    else 0  # Handle log(0) cases
                     for t in range(phi.shape[1])
                 )
             )
