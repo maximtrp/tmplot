@@ -8,35 +8,47 @@
 [![PyPI](https://img.shields.io/pypi/v/tmplot)](https://pypi.org/project/tmplot)
 [![Issues](https://img.shields.io/github/issues/maximtrp/tmplot.svg)](https://github.com/maximtrp/tmplot/issues)
 
-**tmplot** is a Python package for analysis and visualization of topic modeling results. It provides the interactive report interface that borrows much from LDAvis/pyLDAvis and builds upon it offering a number of metrics for calculating topic distances and a number of algorithms for calculating scatter coordinates of topics. It can be used to select closest and stable topics across multiple models.
+**tmplot** is a comprehensive Python package for **topic modeling analysis and visualization**. Built for data scientists and researchers, it provides powerful interactive reports and advanced analytics that extend beyond traditional LDAvis/pyLDAvis capabilities.
+
+**Analyze** • **Visualize** • **Compare** multiple topic models with ease
 
 ![Plots](https://raw.githubusercontent.com/maximtrp/tmplot/main/images/topics_terms_plots.png)
 
-## Features
+## Key Features
 
-- Supported models:
+### Interactive Visualization
 
-  - [tomotopy](https://bab2min.github.io/tomotopy/): `LDAModel`, `LLDAModel`, `CTModel`, `DMRModel`, `HDPModel`, `PTModel`, `SLDAModel`, `GDMRModel`
-  - [gensim](https://radimrehurek.com/gensim/): `LdaModel`, `LdaMulticore`
-  - [bitermplus](https://github.com/maximtrp/bitermplus): `BTM`
+- **Topic scatter plots** with customizable coordinates and sizing
+- **Term probability charts** with relevance weighting
+- **Document analysis** showing top documents per topic
+- **Interactive reports** with real-time parameter adjustment
 
-- Supported distance metrics:
+### Advanced Analytics
 
-  - Kullback-Leibler (symmetric and non-symmetric) divergence
-  - Jenson-Shannon divergence
-  - Jeffrey's divergence
-  - Hellinger distance
-  - Bhattacharyya distance
-  - Total variation distance
-  - Jaccard inversed index
+- **Topic stability analysis** across multiple model runs
+- **Model comparison** with sophisticated distance metrics
+- **Saliency calculations** for term importance
+- **Entropy metrics** for model optimization
 
-- Supported [algorithms](https://scikit-learn.org/stable/modules/classes.html#module-sklearn.manifold) for calculating topics scatter coordinates:
+### Model Support
 
-  - t-SNE
-  - SpectralEmbedding
-  - MDS
-  - LocallyLinearEmbedding
-  - Isomap
+- **[tomotopy](https://bab2min.github.io/tomotopy/)**: `LDAModel`, `LLDAModel`, `CTModel`, `DMRModel`, `HDPModel`, `PTModel`, `SLDAModel`, `GDMRModel`
+- **[gensim](https://radimrehurek.com/gensim/)**: `LdaModel`, `LdaMulticore`
+- **[bitermplus](https://github.com/maximtrp/bitermplus)**: `BTM`
+
+### Distance Metrics
+
+- **Kullback-Leibler** (symmetric & non-symmetric)
+- **Jensen-Shannon divergence**
+- **Jeffrey's divergence**
+- **Hellinger & Bhattacharyya distances**
+- **Total variation distance**
+- **Jaccard index**
+
+### Dimensionality Reduction
+
+- **t-SNE** • **SpectralEmbedding** • **MDS**
+- **LocallyLinearEmbedding** • **Isomap**
 
 ## Donate
 
@@ -44,55 +56,76 @@ If you find this package useful, please consider donating any amount of money. T
 
 <a href="https://www.buymeacoffee.com/maximtrp" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
-## Installation
+## Quick Start
 
-The package can be installed from PyPi:
+### Installation
 
 ```bash
+# From PyPI (recommended)
 pip install tmplot
-```
 
-Or directly from this repository:
-
-```bash
+# Development version
 pip install git+https://github.com/maximtrp/tmplot.git
 ```
 
-## Dependencies
-
-- `numpy`
-- `scipy`
-- `scikit-learn`
-- `pandas`
-- `altair`
-- `ipywidgets`
-- `tomotopy`, `gensim`, and `bitermplus` (optional)
-
-## Quick example
+### Basic Usage
 
 ```python
-# Importing packages
 import tmplot as tmp
-import pickle as pkl
-import pandas as pd
 
-# Reading a model from a file
-with open('data/model.pkl', 'rb') as file:
-    model = pkl.load(file)
+# Load your topic model and documents
+model = your_fitted_model  # tomotopy, gensim, or bitermplus
+docs = your_documents
 
-# Reading documents from a file
-docs = pd.read_csv('data/docs.txt.gz', header=None).values.ravel()
+# Create interactive report
+tmp.report(model, docs=docs)
 
-# Plotting topics as a scatter plot
-topics_coords = tmp.prepare_coords(model)
-tmp.plot_scatter_topics(topics_coords, size_col='size', label_col='label')
-
-# Plotting terms probabilities
-terms_probs = tmp.calc_terms_probs_ratio(phi, topic=0, lambda_=1)
-tmp.plot_terms(terms_probs)
-
-# Running report interface
-tmp.report(model, docs=docs, width=250)
+# Or create individual visualizations
+coords = tmp.prepare_coords(model)
+tmp.plot_scatter_topics(coords, size_col='size')
 ```
 
-You can find more examples in the [tutorial](https://tmplot.readthedocs.io/en/latest/tutorial.html).
+## Advanced Examples
+
+### Compare Multiple Models
+
+```python
+import tmplot as tmp
+
+# Find stable topics across multiple models
+models = [model1, model2, model3, model4]
+closest_topics, distances = tmp.get_closest_topics(models)
+stable_topics, stable_distances = tmp.get_stable_topics(closest_topics, distances)
+```
+
+### Model Optimization
+
+```python
+# Calculate entropy for model selection
+entropy_score = tmp.entropy(phi_matrix)
+
+# Analyze topic stability
+saliency = tmp.get_salient_terms(phi, theta)
+```
+
+### Custom Visualizations
+
+```python
+# Create topic distance matrix with different metrics
+topic_dists = tmp.get_topics_dist(phi, method='jensen-shannon')
+
+# Generate coordinates with custom algorithm
+coords = tmp.get_topics_scatter(topic_dists, theta, method='tsne')
+tmp.plot_scatter_topics(coords, topic=3)  # Highlight topic 3
+```
+
+## Documentation & Examples
+
+- **[Complete Tutorial](https://tmplot.readthedocs.io/en/latest/tutorial.html)** - Step-by-step guide
+- **[API Reference](https://tmplot.readthedocs.io/)** - Full documentation
+- **[Example Notebooks](https://github.com/maximtrp/tmplot/tree/main/examples)** - Jupyter examples
+
+## Requirements
+
+**Core dependencies:** `numpy`, `scipy`, `scikit-learn`, `pandas`, `altair`, `ipywidgets`
+**Optional models:** `tomotopy`, `gensim`, `bitermplus`
