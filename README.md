@@ -47,8 +47,7 @@
 
 ### Dimensionality Reduction
 
-- t-SNE • SpectralEmbedding • MDS
-- LocallyLinearEmbedding\*\* • Isomap
+t-SNE, SpectralEmbedding, MDS, LocallyLinearEmbedding, Isomap
 
 ## Donate
 
