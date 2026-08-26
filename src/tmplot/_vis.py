@@ -109,15 +109,6 @@ def plot_scatter_topics(
             "scale": Scale(range=[0, 3000]),
         }
 
-    if not circle_enc_kws:
-        circle_enc_kws = {
-            "x": X(**x_kws),
-            "y": Y(**y_kws),
-            "size": Size(size_col, **size_kws)
-            if size_col and not topics_coords[size_col].isna().any()
-            else value(500),
-        }
-
     if not text_kws:
         text_kws = {"align": "center", "baseline": "middle"}
 
@@ -137,6 +128,20 @@ def plot_scatter_topics(
         if topics_coords.empty:
             raise ValueError("topics_coords DataFrame cannot be empty")
         data = topics_coords.copy()
+
+    if size_col and size_col not in data:
+        raise ValueError(f"size column {size_col!r} is missing")
+    if label_col and label_col not in data:
+        raise ValueError(f"label column {label_col!r} is missing")
+
+    if not circle_enc_kws:
+        circle_enc_kws = {
+            "x": X(**x_kws),
+            "y": Y(**y_kws),
+            "size": Size(size_col, **size_kws)
+            if size_col and not data[size_col].isna().any()
+            else value(500),
+        }
 
     if not topic_col:
         topic_col = "topic"

@@ -111,7 +111,7 @@ saliency = tmp.get_salient_terms(phi, theta)
 
 ```python
 # Create topic distance matrix with different metrics
-topic_dists = tmp.get_topics_dist(phi, method='jensen-shannon')
+topic_dists = tmp.get_topics_dist(phi, method='jsd')
 
 # Generate coordinates with custom algorithm
 coords = tmp.get_topics_scatter(topic_dists, theta, method='tsne')
@@ -122,7 +122,7 @@ tmp.plot_scatter_topics(coords, topic=3)  # Highlight topic 3
 
 - [Complete Tutorial](https://tmplot.readthedocs.io/en/latest/tutorial.html) - Step-by-step guide
 - [API Reference](https://tmplot.readthedocs.io/) - Full documentation
-- [Example Notebooks](https://github.com/maximtrp/tmplot/tree/main/examples) - Jupyter examples
+- [Tutorial Notebook](docs/source/tutorial.ipynb) - Jupyter walkthrough
 
 ## Requirements
 

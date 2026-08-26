@@ -1,7 +1,9 @@
 """Metrics module"""
+
 from math import log
 import numpy as np
-__all__ = ['entropy']
+
+__all__ = ["entropy"]
 
 
 def entropy(phi: np.ndarray, max_probs: bool = False):
@@ -40,6 +42,12 @@ def entropy(phi: np.ndarray, max_probs: bool = False):
     >>> # Entropy calculation
     >>> entropy = tmp.entropy(phi)
     """
+    phi = np.asarray(phi, dtype=float)
+    if phi.ndim != 2 or 0 in phi.shape:
+        raise ValueError("phi must be a non-empty 2D topics x words matrix")
+    if not np.isfinite(phi).all() or np.any(phi < 0):
+        raise ValueError("phi must contain finite non-negative probabilities")
+
     # Terms number
     words_num = phi.shape[1]
     # Topics number
@@ -53,14 +61,18 @@ def entropy(phi: np.ndarray, max_probs: bool = False):
         p_max = np.max(phi, axis=0)
 
         # Select the probabilities larger than thresh
-        p_max_mask = p_max > thresh
+        p_max_mask = p_max >= thresh
         word_ratio = p_max_mask.sum()
         sum_prob = p_max[p_max_mask].sum()
 
     else:
         # Select the probabilities larger than thresh
-        sum_prob = np.nansum(phi[phi > thresh])
-        word_ratio = np.count_nonzero(phi > thresh)
+        mask = phi >= thresh
+        sum_prob = phi[mask].sum()
+        word_ratio = np.count_nonzero(mask)
+
+    if word_ratio == 0 or sum_prob <= 0:
+        raise ValueError("phi does not contain probabilities at or above the threshold")
 
     # Shannon entropy
     shannon = log(word_ratio / (words_num * topics_num))
@@ -75,6 +87,6 @@ def entropy(phi: np.ndarray, max_probs: bool = False):
     if topics_num == 1:
         renyi = free_energy / topics_num
     else:
-        renyi = free_energy / (topics_num-1)
+        renyi = free_energy / (topics_num - 1)
 
     return renyi

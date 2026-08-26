@@ -15,14 +15,22 @@ from sklearn.manifold import (
 from ._helpers import calc_topics_marg_probs
 
 
+EPSILON = 1e-64
+
+
+def _positive_probabilities(values: np.ndarray) -> np.ndarray:
+    values = np.clip(np.asarray(values, dtype=float), EPSILON, None)
+    return values / values.sum()
+
+
 def _dist_klb(a1: np.ndarray, a2: np.ndarray):
-    dist = kl_div(a1, a2)
-    return dist[np.isfinite(dist)].sum()
+    return kl_div(_positive_probabilities(a1), _positive_probabilities(a2)).sum()
 
 
 def _dist_sklb(a1: np.ndarray, a2: np.ndarray):
-    dist = kl_div(a1, a2) + kl_div(a2, a1)
-    return dist[np.isfinite(dist)].sum()
+    a1_safe = _positive_probabilities(a1)
+    a2_safe = _positive_probabilities(a2)
+    return (kl_div(a1_safe, a2_safe) + kl_div(a2_safe, a1_safe)).sum()
 
 
 def _dist_jsd(a1: np.ndarray, a2: np.ndarray):
@@ -32,13 +40,9 @@ def _dist_jsd(a1: np.ndarray, a2: np.ndarray):
 
 
 def _dist_jef(a1: np.ndarray, a2: np.ndarray):
-    vals = (a1 - a2) * (np.log(a1) - np.log(a2))
-    vals[(vals <= 0) | ~np.isfinite(vals)] = 0.0
-    return vals.sum()
-
-
-# Small value for numerical stability
-EPSILON = 1e-64
+    a1_safe = _positive_probabilities(a1)
+    a2_safe = _positive_probabilities(a2)
+    return ((a1_safe - a2_safe) * (np.log(a1_safe) - np.log(a2_safe))).sum()
 
 
 def _dist_hel(a1: np.ndarray, a2: np.ndarray):
@@ -124,13 +128,28 @@ def get_topics_dist(
         "jac": _dist_jac,
     }
 
+    if method not in dist_funcs:
+        raise ValueError(
+            f"Unknown distance method {method!r}; choose from {sorted(dist_funcs)}"
+        )
+    _dist_func = dist_funcs[method]
     for i, j in topics_pairs:
-        _dist_func = dist_funcs.get(method, "sklb")
         topics_dists[((i, j), (j, i))] = _dist_func(
             phi_copy[:, i], phi_copy[:, j], **kwargs
         )
 
     return topics_dists
+
+
+def _classical_mds(distances: np.ndarray) -> np.ndarray:
+    count = distances.shape[0]
+    centering = np.eye(count) - np.ones((count, count)) / count
+    gram = -0.5 * centering @ (distances**2) @ centering
+    eigenvalues, eigenvectors = np.linalg.eigh(gram)
+    positive = eigenvalues > np.finfo(float).eps
+    if not positive.any():
+        return np.zeros((count, 1))
+    return eigenvectors[:, positive] * np.sqrt(eigenvalues[positive])
 
 
 def get_topics_scatter(
@@ -164,11 +183,39 @@ def get_topics_scatter(
     DataFrame
         Topics scatter coordinates.
     """
-    if not method_kws:
-        method_kws = {"n_components": 2}
+    topic_dists = np.asarray(topic_dists, dtype=float)
+    theta = np.asarray(theta, dtype=float)
+    if topic_dists.ndim != 2 or topic_dists.shape[0] != topic_dists.shape[1]:
+        raise ValueError("topic_dists must be a square 2D matrix")
+    if not np.isfinite(topic_dists).all():
+        raise ValueError("topic_dists must contain only finite values")
+    if not np.allclose(topic_dists, topic_dists.T):
+        raise ValueError("topic_dists must be symmetric")
+    if theta.ndim != 2 or theta.shape[0] != topic_dists.shape[0]:
+        raise ValueError("theta topics dimension must match topic_dists")
+    if topic_dists.shape[0] < 2:
+        raise ValueError("at least two topics are required for scatter coordinates")
+
+    valid_methods = ["tsne", "sem", "mds", "lle", "ltsa", "isomap"]
+    if method not in valid_methods:
+        raise ValueError(
+            f"Unknown scatter method {method!r}; choose from {valid_methods}"
+        )
+
+    if topic_dists.shape[0] == 2:
+        half_distance = topic_dists[0, 1] / 2
+        coords = np.array([[-half_distance, 0.0], [half_distance, 0.0]])
+        topics_xy = DataFrame(coords, columns=Index(["x", "y"]))
+        topics_xy["topic"] = topics_xy.index.astype(int)
+        topics_xy["size"] = calc_topics_marg_probs(theta) * 100
+        return topics_xy
+
+    method_kws = dict(method_kws or {})
+    method_kws.setdefault("n_components", 2)
 
     if method == "tsne":
-        method_kws.setdefault("init", "pca")
+        method_kws.setdefault("metric", "precomputed")
+        method_kws.setdefault("init", "random")
         method_kws.setdefault("learning_rate", "auto")
         method_kws.setdefault("perplexity", min(50, max(topic_dists.shape[0] // 2, 1)))
         transformer = TSNE(**method_kws)
@@ -176,25 +223,39 @@ def get_topics_scatter(
     elif method == "sem":
         method_kws.setdefault("affinity", "precomputed")
         transformer = SpectralEmbedding(**method_kws)
+        nonzero = topic_dists[topic_dists > 0]
+        scale = np.median(nonzero) if nonzero.size else 1.0
+        transform_input = np.exp(-((topic_dists / scale) ** 2))
+        np.fill_diagonal(transform_input, 1.0)
 
     elif method == "mds":
         method_kws.setdefault("dissimilarity", "precomputed")
         method_kws.setdefault("normalized_stress", "auto")
         method_kws.setdefault("n_init", 1)
+        method_kws.setdefault("init", "random")
         transformer = MDS(**method_kws)
 
     elif method == "lle":
         method_kws["method"] = "standard"
+        method_kws.setdefault("n_neighbors", min(5, topic_dists.shape[0] - 1))
         transformer = LocallyLinearEmbedding(**method_kws)
+        transform_input = _classical_mds(topic_dists)
 
     elif method == "ltsa":
         method_kws["method"] = "ltsa"
+        method_kws.setdefault("n_neighbors", min(5, topic_dists.shape[0] - 1))
         transformer = LocallyLinearEmbedding(**method_kws)
+        transform_input = _classical_mds(topic_dists)
 
     elif method == "isomap":
+        method_kws.setdefault("metric", "precomputed")
+        method_kws.setdefault("n_neighbors", min(5, topic_dists.shape[0] - 1))
         transformer = Isomap(**method_kws)
 
-    coords = transformer.fit_transform(topic_dists)
+    else:
+        raise AssertionError("validated scatter method was not handled")
+
+    coords = transformer.fit_transform(locals().get("transform_input", topic_dists))
 
     topics_xy = DataFrame(coords, columns=Index(["x", "y"]))
     topics_xy["topic"] = topics_xy.index.astype(int)
@@ -229,6 +290,7 @@ def get_top_topic_words(
     DataFrame
         Words with highest probabilities in all (or selected) topics.
     """
-    return phi.loc[:, topics_idx or phi.columns].apply(
+    selected_topics = phi.columns if topics_idx is None else topics_idx
+    return phi.loc[:, selected_topics].apply(
         lambda x: x.sort_values(ascending=False).head(words_num).index, axis=0
     )

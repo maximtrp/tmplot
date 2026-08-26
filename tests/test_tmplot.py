@@ -10,10 +10,14 @@ from ipywidgets import VBox
 class TestTmplot(unittest.TestCase):
     def setUp(self):
         self.tomotopy_model = LDAModel.load("tests/models/tomotopyLDA.model")
-        with open("tests/models/gensimLDA.model", "rb") as file:
-            self.gensim_model = pkl.load(file)
-        with open("tests/models/gensimLDA.corpus", "rb") as file:
-            self.gensim_corpus = pkl.load(file)
+        try:
+            with open("tests/models/gensimLDA.model", "rb") as file:
+                self.gensim_model = pkl.load(file)
+            with open("tests/models/gensimLDA.corpus", "rb") as file:
+                self.gensim_corpus = pkl.load(file)
+        except ModuleNotFoundError:
+            self.gensim_model = None
+            self.gensim_corpus = None
         with open("tests/models/btm_big.pickle", "rb") as file:
             self.btm_model_big = pkl.load(file)
         with open("tests/models/btm_small.pickle", "rb") as file:
@@ -22,6 +26,10 @@ class TestTmplot(unittest.TestCase):
         self.phi = tm.get_phi(self.tomotopy_model)
         self.theta = tm.get_theta(self.tomotopy_model)
 
+    def _require_gensim(self):
+        if self.gensim_model is None:
+            self.skipTest("gensim is not installed")
+
     def test_is_btmplus(self):
         self.assertTrue(tm._helpers._is_btmplus(self.btm_model_big))
 
@@ -29,9 +37,11 @@ class TestTmplot(unittest.TestCase):
         self.assertTrue(tm._helpers._is_tomotopy(self.tomotopy_model))
 
     def test_is_gensim(self):
+        self._require_gensim()
         self.assertTrue(tm._helpers._is_gensim(self.gensim_model))
 
     def test_get_phi(self):
+        self._require_gensim()
         phi = tm.get_phi(self.gensim_model)
         self.assertGreater(phi.shape[0], 0)
         self.assertGreater(self.phi.shape[0], 0)
@@ -39,6 +49,7 @@ class TestTmplot(unittest.TestCase):
         self.assertEqual(self.phi.shape[1], 15)
 
     def test_get_theta(self):
+        self._require_gensim()
         theta = tm.get_theta(self.gensim_model, self.gensim_corpus)
         self.assertEqual(theta.shape[0], 15)
         self.assertEqual(self.theta.shape[0], 15)
@@ -162,6 +173,7 @@ class TestTmplot(unittest.TestCase):
     def test_entropy_single_topic(self):
         # Test edge case with single topic (line 76 in _metrics.py)
         import numpy as np
+
         single_topic_phi = np.random.rand(1, 100)  # Create single topic phi matrix
         entropy_single = tm.entropy(single_topic_phi)
         self.assertIsInstance(entropy_single, float)
@@ -172,12 +184,14 @@ class TestTmplot(unittest.TestCase):
 
     # Error handling tests for _helpers.py
     def test_get_theta_gensim_no_corpus(self):
+        self._require_gensim()
         # Test error when corpus is not provided for gensim model (line 158)
         with self.assertRaises(ValueError) as context:
             tm.get_theta(self.gensim_model)
         self.assertIn("corpus", str(context.exception).lower())
 
     def test_get_theta_gensim_empty_corpus(self):
+        self._require_gensim()
         # Test error when corpus is empty for gensim model (line 160)
         with self.assertRaises(ValueError) as context:
             tm.get_theta(self.gensim_model, corpus=[])
@@ -202,6 +216,7 @@ class TestTmplot(unittest.TestCase):
     def test_calc_topics_marg_probs_empty_theta(self):
         # Test error for empty theta matrix (line 273)
         import numpy as np
+
         empty_theta = np.array([])
         with self.assertRaises(ValueError) as context:
             tm.calc_topics_marg_probs(empty_theta)
@@ -210,6 +225,7 @@ class TestTmplot(unittest.TestCase):
     def test_calc_topics_marg_probs_all_zeros(self):
         # Test error for theta matrix with all zeros (line 278)
         import numpy as np
+
         zero_theta = np.zeros((3, 5))
         with self.assertRaises(ValueError) as context:
             tm.calc_topics_marg_probs(zero_theta)
@@ -224,6 +240,7 @@ class TestTmplot(unittest.TestCase):
     def test_calc_terms_marg_probs_empty_phi(self):
         # Test error for empty phi matrix (line 313)
         import numpy as np
+
         empty_phi = np.array([])
         p_t = tm.calc_topics_marg_probs(self.theta)
         with self.assertRaises(ValueError) as context:
@@ -233,6 +250,7 @@ class TestTmplot(unittest.TestCase):
     def test_calc_terms_marg_probs_empty_pt(self):
         # Test error for empty p_t array (line 315)
         import numpy as np
+
         empty_pt = np.array([])
         with self.assertRaises(ValueError) as context:
             tm.calc_terms_marg_probs(self.phi, empty_pt)
@@ -241,6 +259,7 @@ class TestTmplot(unittest.TestCase):
     def test_calc_terms_marg_probs_dimension_mismatch(self):
         # Test error for dimension mismatch (line 317)
         import numpy as np
+
         wrong_pt = np.array([0.5, 0.5])  # Wrong size
         with self.assertRaises(ValueError) as context:
             tm.calc_terms_marg_probs(self.phi, wrong_pt)
@@ -257,6 +276,7 @@ class TestTmplot(unittest.TestCase):
     def test_get_salient_terms_empty_matrices(self):
         # Test error for empty phi and theta matrices (line 347)
         import numpy as np
+
         empty_phi = np.array([])
         empty_theta = np.array([])
         with self.assertRaises(ValueError) as context:
@@ -266,6 +286,7 @@ class TestTmplot(unittest.TestCase):
     def test_get_salient_terms_dimension_mismatch(self):
         # Test error for dimension mismatch in phi and theta (line 349)
         import numpy as np
+
         wrong_theta = np.random.rand(10, 5)  # Wrong number of topics
         with self.assertRaises(ValueError) as context:
             tm.get_salient_terms(self.phi, wrong_theta)
@@ -275,6 +296,7 @@ class TestTmplot(unittest.TestCase):
     def test_plot_scatter_topics_empty_ndarray(self):
         # Test error for empty ndarray input (lines 133-135)
         import numpy as np
+
         empty_coords = np.array([])
         with self.assertRaises(ValueError) as context:
             tm.plot_scatter_topics(empty_coords)
@@ -283,6 +305,7 @@ class TestTmplot(unittest.TestCase):
     def test_plot_scatter_topics_empty_dataframe(self):
         # Test error for empty DataFrame input (lines 137-139)
         from pandas import DataFrame
+
         empty_df = DataFrame()
         with self.assertRaises(ValueError) as context:
             tm.plot_scatter_topics(empty_df)
@@ -291,6 +314,7 @@ class TestTmplot(unittest.TestCase):
     def test_plot_terms_empty_dataframe(self):
         # Test error for empty DataFrame input (lines 233-234)
         from pandas import DataFrame
+
         empty_df = DataFrame()
         with self.assertRaises(ValueError) as context:
             tm.plot_terms(empty_df)
@@ -299,6 +323,7 @@ class TestTmplot(unittest.TestCase):
     def test_plot_terms_missing_columns(self):
         # Test error for missing required columns (lines 236-238)
         from pandas import DataFrame
+
         incomplete_df = DataFrame({"wrong_col": [1, 2, 3]})
         with self.assertRaises(ValueError) as context:
             tm.plot_terms(incomplete_df)
@@ -309,6 +334,7 @@ class TestTmplot(unittest.TestCase):
         docs_list = ["Document 1 content", "Document 2 content"]
         result = tm.plot_docs(docs_list)
         from IPython.display import HTML
+
         self.assertIsInstance(result, HTML)
 
     # Tests for _report.py error handling
@@ -330,38 +356,41 @@ class TestTmplot(unittest.TestCase):
         report = tm.report(
             self.tomotopy_model,
             docs=docs,
-            topics_labels=["Topic A", "Topic B"],
+            topics_labels=[
+                f"Topic {topic_id}" for topic_id in range(self.tomotopy_model.k)
+            ],
             show_headers=False,
             show_docs=False,
             show_words=False,
             show_topics=True,
             width=400,
-            height=600
+            height=600,
         )
         from ipywidgets import VBox
+
         self.assertIsInstance(report, VBox)
 
     def test_report_gensim_with_corpus(self):
+        self._require_gensim()
         # Test report with gensim model and corpus
         theta_gensim = tm.get_theta(self.gensim_model, self.gensim_corpus)
         num_docs = theta_gensim.shape[1]
         docs = [f"doc{i}" for i in range(num_docs)]  # Create appropriate number of docs
         report = tm.report(
-            self.gensim_model,
-            docs=docs,
-            corpus=self.gensim_corpus,
-            width=200
+            self.gensim_model, docs=docs, corpus=self.gensim_corpus, width=200
         )
         from ipywidgets import VBox
+
         self.assertIsInstance(report, VBox)
 
     # Additional tests for better coverage of edge cases
     def test_get_docs_non_tomotopy_model(self):
-        # Test get_docs with non-tomotopy model (line 198)
-        result = tm.get_docs(self.gensim_model)
+        # Any unsupported object should not expose documents.
+        result = tm.get_docs(object())
         self.assertIsNone(result)
 
     def test_get_phi_with_vocabulary(self):
+        self._require_gensim()
         # Test get_phi with gensim model and vocabulary (line 85)
         gensim_phi = tm.get_phi(self.gensim_model)
         vocab = ["word" + str(i) for i in range(gensim_phi.shape[0])]
@@ -374,9 +403,7 @@ class TestTmplot(unittest.TestCase):
         dist_kws = {"method": "jsd"}
         scatter_kws = {"method": "mds"}
         coords = tm.prepare_coords(
-            self.tomotopy_model,
-            dist_kws=dist_kws,
-            scatter_kws=scatter_kws
+            self.tomotopy_model, dist_kws=dist_kws, scatter_kws=scatter_kws
         )
         self.assertEqual(coords.shape[1], 5)  # x, y, size, label, topic
 
@@ -392,20 +419,14 @@ class TestTmplot(unittest.TestCase):
         docs = tm.get_docs(self.tomotopy_model)
         specific_topics = [0, 2, 4]
         top_docs = tm.get_top_docs(
-            docs,
-            self.tomotopy_model,
-            self.theta,
-            topics=specific_topics
+            docs, self.tomotopy_model, self.theta, topics=specific_topics
         )
         self.assertEqual(top_docs.shape[1], len(specific_topics))
 
     def test_calc_terms_probs_ratio_edge_cases(self):
         # Test calc_terms_probs_ratio with different parameters
         terms_probs = tm.calc_terms_probs_ratio(
-            self.phi,
-            topic=1,
-            terms_num=10,
-            lambda_=0.8
+            self.phi, topic=1, terms_num=10, lambda_=0.8
         )
         self.assertEqual(len(terms_probs), 20)  # 10 terms * 2 types
 
@@ -433,9 +454,10 @@ class TestTmplot(unittest.TestCase):
             circle_kws={"opacity": 0.5},
             text_kws={"fontSize": 12},
             size_kws={"range": [100, 2000]},
-            color_kws={"scheme": "viridis"}
+            color_kws={"scheme": "viridis"},
         )
         from altair import LayerChart
+
         self.assertIsInstance(chart, LayerChart)
 
     def test_plot_terms_with_custom_parameters(self):
@@ -448,9 +470,10 @@ class TestTmplot(unittest.TestCase):
             bar_kws={"stroke": "black"},
             x_kws={"title": "Custom X"},
             y_kws={"title": "Custom Y"},
-            color_kws={"scheme": "set1"}
+            color_kws={"scheme": "set1"},
         )
         from altair import Chart
+
         self.assertIsInstance(chart, Chart)
 
     def test_plot_docs_with_custom_styles(self):
@@ -460,6 +483,7 @@ class TestTmplot(unittest.TestCase):
         html_kws = {"escape": False, "classes": "custom-table"}
         result = tm.plot_docs(docs_list, styles=custom_styles, html_kws=html_kws)
         from IPython.display import HTML
+
         self.assertIsInstance(result, HTML)
 
     def test_btm_model_functionality(self):
@@ -478,7 +502,8 @@ class TestTmplot(unittest.TestCase):
 
         # Test that the helper functions work correctly when packages are available
         self.assertTrue(tm._helpers._is_tomotopy(self.tomotopy_model))
-        self.assertTrue(tm._helpers._is_gensim(self.gensim_model))
+        if self.gensim_model is not None:
+            self.assertTrue(tm._helpers._is_gensim(self.gensim_model))
         self.assertTrue(tm._helpers._is_btmplus(self.btm_model_big))
 
         # Test with an object that's not a recognized model type

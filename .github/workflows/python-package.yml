@@ -2,37 +2,41 @@ name: Test package
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.11"]
+        python-version: ["3.9", "3.10", "3.12", "3.14"]
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install .
-        python -m pip install .[test]
-        python -m pip install .[models]
-    - name: Testing with pytest and measuring coverage
-      run: |
-        coverage run --source src -m pytest .
-        coverage xml
-    - name: Reporting coverage to Codacy
-      uses: codacy/codacy-coverage-reporter-action@v1
-      with:
-        project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
-        coverage-reports: coverage.xml
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install '.[test,models]'
+          python -m build
+          python -m twine check dist/*
+      - name: Smoke test built wheel
+        run: |
+          python -m venv /tmp/tmplot-wheel
+          /tmp/tmplot-wheel/bin/pip install dist/*.whl
+          /tmp/tmplot-wheel/bin/python -c "import tmplot; print(tmplot.__version__)"
+      - name: Testing with pytest and measuring coverage
+        run: |
+          coverage run --source src -m pytest .
+          coverage xml
+      - name: Reporting coverage to Codacy
+        uses: codacy/codacy-coverage-reporter-action@v1
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: coverage.xml

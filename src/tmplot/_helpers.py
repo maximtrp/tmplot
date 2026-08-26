@@ -9,43 +9,65 @@ __all__ = [
     "calc_topics_marg_probs",
     "calc_terms_probs_ratio",
 ]
-from warnings import warn
 from importlib.util import find_spec
+from warnings import warn
 from typing import Union, Optional, Sequence, List
 from functools import partial
-from math import log
-from numpy import ndarray, zeros, argsort, array, arange, vstack
+from numpy import ndarray, zeros, array, arange, vstack
 from numpy import log as nplog
+import numpy as np
 from pandas import concat, Series, DataFrame
 
 tomotopy_installed = find_spec("tomotopy")
 if tomotopy_installed:
-    from tomotopy import (
-        LDAModel as tomotopyLDA,
-        LLDAModel as tomotopyLLDA,
-        CTModel as tomotopyCT,
-        DMRModel as tomotopyDMR,
-        HDPModel as tomotopyHDP,
-        PTModel as tomotopyPT,
-        SLDAModel as tomotopySLDA,
-        GDMRModel as tomotopyGDMR,
-    )
+    try:
+        from tomotopy import (
+            LDAModel as tomotopyLDA,
+            LLDAModel as tomotopyLLDA,
+            CTModel as tomotopyCT,
+            DMRModel as tomotopyDMR,
+            HDPModel as tomotopyHDP,
+            PTModel as tomotopyPT,
+            SLDAModel as tomotopySLDA,
+            GDMRModel as tomotopyGDMR,
+        )
+    except (ImportError, OSError):
+        tomotopy_installed = None
 
 gensim_installed = find_spec("gensim")
 if gensim_installed:
-    from gensim.models.ldamodel import LdaModel as gensimLDA
-    from gensim.models.ldamulticore import LdaMulticore as gensimLDAMC
+    try:
+        from gensim.models.ldamodel import LdaModel as gensimLDA
+        from gensim.models.ldamulticore import LdaMulticore as gensimLDAMC
+    except (ImportError, OSError):
+        gensim_installed = None
 
 bitermplus_installed = find_spec("bitermplus")
 if bitermplus_installed:
-    from bitermplus._btm import BTM
+    try:
+        from bitermplus._btm import BTM
+    except (ImportError, OSError):
+        bitermplus_installed = None
 
 
-def __warn_package_installation(package_name: str):
-    warn(
-        f'Please install "{package_name}" package to analyze its models.\n'
-        f"Run `pip install {package_name}` in the console."
-    )
+def _warn_missing_model_packages() -> None:
+    missing = [
+        name
+        for name, installed in (
+            ("tomotopy", tomotopy_installed),
+            ("gensim", gensim_installed),
+            ("bitermplus", bitermplus_installed),
+        )
+        if not installed
+    ]
+    if missing:
+        packages = ", ".join(missing)
+        warn(
+            f"Optional model adapter packages are not installed: {packages}. "
+            f"Install the required adapter to analyze its models.",
+            UserWarning,
+            stacklevel=2,
+        )
 
 
 def get_phi(model: object, vocabulary: Optional[Sequence] = None) -> DataFrame:
@@ -81,7 +103,9 @@ def get_phi(model: object, vocabulary: Optional[Sequence] = None) -> DataFrame:
 
     elif _is_gensim(model):
         phi = DataFrame(model.get_topics().T)
-        if vocabulary:
+        if vocabulary is not None:
+            if len(vocabulary) != phi.shape[0]:
+                raise ValueError("vocabulary length must match the number of words")
             phi.index = vocabulary
 
     elif _is_btmplus(model):
@@ -91,6 +115,9 @@ def get_phi(model: object, vocabulary: Optional[Sequence] = None) -> DataFrame:
         phi.index.name = "words"
         phi.columns.name = "topics"
 
+    if phi is None:
+        _warn_missing_model_packages()
+        raise ValueError(f"Unsupported model type: {type(model)}")
     return phi
 
 
@@ -108,7 +135,6 @@ def _is_tomotopy(model: object) -> bool:
         ]
         return any(map(partial(isinstance, model), tomotopy_models))
 
-    __warn_package_installation("tomotopy")
     return False
 
 
@@ -117,7 +143,6 @@ def _is_gensim(model: object) -> bool:
         gensim_models = [gensimLDA, gensimLDAMC]
         return any(map(partial(isinstance, model), gensim_models))
 
-    __warn_package_installation("gensim")
     return False
 
 
@@ -125,7 +150,6 @@ def _is_btmplus(model: object) -> bool:
     if bitermplus_installed:
         return isinstance(model, BTM)
 
-    __warn_package_installation("bitermplus")
     return False
 
 
@@ -159,15 +183,16 @@ def get_theta(model: object, corpus: Optional[List] = None) -> Optional[DataFram
         if len(corpus) == 0:
             raise ValueError("corpus cannot be empty")
         tdd = list(map(model.get_document_topics, corpus))
-        theta = DataFrame(zeros((len(tdd), model.num_topics)))
+        theta_values = zeros((len(tdd), model.num_topics))
         for doc_id, doc_topic in enumerate(tdd):
             for topic_id, topic_prob in doc_topic:
-                theta.loc[doc_id, topic_id] = topic_prob
-        theta = theta.T
+                theta_values[doc_id, topic_id] = topic_prob
+        theta = DataFrame(theta_values.T)
 
     elif _is_btmplus(model):
         theta = DataFrame(model.matrix_topics_docs_)
     else:
+        _warn_missing_model_packages()
         raise ValueError(f"Unsupported model type: {type(model)}")
 
     if isinstance(theta, DataFrame):
@@ -236,12 +261,22 @@ def get_top_docs(
     if all([model is None, theta is None]):
         raise ValueError("Please pass a model or a theta matrix to function")
 
-    if model and theta is not None:
+    if theta is None:
         theta = get_theta(model, corpus=corpus).values
+
+    theta = array(theta)
+    if theta.ndim != 2:
+        raise ValueError("theta must be a 2D topics x documents matrix")
+    if len(docs) != theta.shape[1]:
+        raise ValueError("docs length must match theta documents dimension")
+    if docs_num <= 0:
+        raise ValueError("docs_num must be positive")
 
     def _select_docs(docs, theta, topic_id: int):
         probs = theta[topic_id, :]
-        idx = argsort(probs)[: -docs_num - 1 : -1]
+        count = min(docs_num, probs.size)
+        idx = np.argpartition(probs, -count)[-count:]
+        idx = idx[np.argsort(probs[idx])[::-1]]
         result = Series(list(map(lambda x: docs[x], idx)))
         result.name = f"topic{topic_id}"
         return result
@@ -271,10 +306,14 @@ def calc_topics_marg_probs(
     theta_arr = array(theta)
     if theta_arr.size == 0:
         raise ValueError("theta matrix cannot be empty")
+    if theta_arr.ndim != 2:
+        raise ValueError("theta matrix must be a 2D array")
+    if not np.isfinite(theta_arr).all() or np.any(theta_arr < 0):
+        raise ValueError("theta matrix must contain finite non-negative values")
 
     p_t = theta_arr.sum(axis=1)
     total_sum = p_t.sum()
-    if total_sum == 0:
+    if total_sum <= 0:
         raise ValueError("theta matrix contains all zeros - cannot normalize")
 
     p_t /= total_sum
@@ -311,12 +350,25 @@ def calc_terms_marg_probs(
 
     if phi_arr.size == 0:
         raise ValueError("phi matrix cannot be empty")
+    if phi_arr.ndim != 2:
+        raise ValueError("phi matrix must be a 2D array")
     if p_t_arr.size == 0:
         raise ValueError("p_t array cannot be empty")
+    if p_t_arr.ndim != 1:
+        raise ValueError("p_t array must be a 1D array")
+    if not np.isfinite(phi_arr).all() or np.any(phi_arr < 0):
+        raise ValueError("phi matrix must contain finite non-negative values")
+    if not np.isfinite(p_t_arr).all() or np.any(p_t_arr < 0):
+        raise ValueError("p_t must contain finite non-negative values")
     if phi_arr.shape[1] != p_t_arr.shape[0]:
-        raise ValueError(f"phi topics dimension {phi_arr.shape[1]} must match p_t length {p_t_arr.shape[0]}")
+        raise ValueError(
+            f"phi topics dimension {phi_arr.shape[1]} must match p_t length {p_t_arr.shape[0]}"
+        )
 
-    p_w = (phi_arr * p_t_arr).sum(axis=1)
+    p_t_sum = p_t_arr.sum()
+    if p_t_sum <= 0:
+        raise ValueError("p_t must have positive total probability")
+    p_w = (phi_arr * (p_t_arr / p_t_sum)).sum(axis=1)
     if word_id is not None:
         if word_id < 0 or word_id >= len(p_w):
             raise IndexError(f"word_id {word_id} out of bounds for {len(p_w)} words")
@@ -343,33 +395,34 @@ def get_salient_terms(phi: ndarray, theta: ndarray) -> ndarray:
     numpy.ndarray
         Terms saliency values.
     """
+    phi = array(phi, dtype=float)
+    theta = array(theta, dtype=float)
     if phi.size == 0 or theta.size == 0:
         raise ValueError("phi and theta matrices cannot be empty")
     if phi.shape[1] != theta.shape[0]:
-        raise ValueError(f"phi topics dimension {phi.shape[1]} must match theta topics dimension {theta.shape[0]}")
+        raise ValueError(
+            f"phi topics dimension {phi.shape[1]} must match theta topics dimension {theta.shape[0]}"
+        )
 
     p_t = calc_topics_marg_probs(theta)
     p_w = calc_terms_marg_probs(phi, p_t)
 
-    def _p_tw(phi, w, t):
-        if p_w[w] == 0:
-            return 0  # Avoid division by zero
-        return array(phi)[w, t] * p_t[t] / p_w[w]
-
-    saliency = array(
-        [
-            p_w[w]
-            * sum(
-                (
-                    _p_tw(phi, w, t) * log(_p_tw(phi, w, t) / p_t[t])
-                    if _p_tw(phi, w, t) > 0 and p_t[t] > 0
-                    else 0  # Handle log(0) cases
-                    for t in range(phi.shape[1])
-                )
-            )
-            for w in range(phi.shape[0])
-        ]
+    p_tw = np.divide(
+        phi * p_t,
+        p_w[:, None],
+        out=np.zeros_like(phi, dtype=float),
+        where=p_w[:, None] > 0,
     )
+    ratio = np.divide(
+        p_tw,
+        p_t,
+        out=np.ones_like(p_tw),
+        where=p_t > 0,
+    )
+    contributions = np.zeros_like(p_tw)
+    positive = p_tw > 0
+    contributions[positive] = p_tw[positive] * np.log(ratio[positive])
+    saliency = p_w * contributions.sum(axis=1)
     # saliency(term w) = frequency(w)
     # * [sum_t p(t | w) * log(p(t | w)/p(t))] for topics t
     # p(t | w) = p(w | t) * p(t) / p(w)
@@ -377,7 +430,11 @@ def get_salient_terms(phi: ndarray, theta: ndarray) -> ndarray:
 
 
 def calc_terms_probs_ratio(
-    phi: DataFrame, topic: int, terms_num: int = 30, lambda_: float = 0.6
+    phi: DataFrame,
+    topic: int,
+    terms_num: int = 30,
+    lambda_: float = 0.6,
+    p_t: Optional[ndarray] = None,
 ) -> DataFrame:
     """Get terms conditional and marginal probabilities.
 
@@ -406,6 +463,8 @@ def calc_terms_probs_ratio(
     pandas.DataFrame
         Words conditional and marginal probabilities.
     """
+    if not 0 <= lambda_ <= 1:
+        raise ValueError("lambda_ must be between 0 and 1")
     p_cond_name = "Conditional term probability, p(w | t)"
     p_cond = (
         phi.iloc[:, topic].rename(p_cond_name)
@@ -414,29 +473,31 @@ def calc_terms_probs_ratio(
     )
 
     p_marg_name = "Marginal term probability, p(w)"
-    p_marg = (
-        phi.sum(axis=1).rename(p_marg_name)
-        if isinstance(phi, DataFrame)
-        else Series(phi[:, topic], name=p_marg_name)
-    )
+    topic_probs = np.full(phi.shape[1], 1 / phi.shape[1]) if p_t is None else array(p_t)
+    marginal = calc_terms_marg_probs(phi, topic_probs)
+    index = phi.index if isinstance(phi, DataFrame) else None
+    p_marg = Series(marginal, index=index, name=p_marg_name)
 
     terms_probs = concat((p_marg, p_cond), axis=1)
-    relevant_idx = get_relevant_terms(phi, topic, lambda_).index
+    relevant_idx = get_relevant_terms(phi, topic, lambda_, p_t=p_t).index
     terms_probs_slice = terms_probs.loc[relevant_idx].head(terms_num)
 
     return (
-        terms_probs_slice.reset_index(drop=False)
+        terms_probs_slice.rename_axis("Terms")
+        .reset_index(drop=False)
         .melt(
-            id_vars=[terms_probs_slice.index.name],
+            id_vars=["Terms"],
             var_name="Type",
             value_name="Probability",
         )
-        .rename(columns={terms_probs_slice.index.name: "Terms"})
     )
 
 
 def get_relevant_terms(
-    phi: Union[ndarray, DataFrame], topic: int, lambda_: float = 0.6
+    phi: Union[ndarray, DataFrame],
+    topic: int,
+    lambda_: float = 0.6,
+    p_t: Optional[ndarray] = None,
 ) -> Series:
     """Select relevant terms.
 
@@ -463,10 +524,30 @@ def get_relevant_terms(
     pandas.Series
         Terms sorted by relevance (descendingly).
     """
-    phi_topic = phi.iloc[:, topic] if isinstance(phi, DataFrame) else phi[:, topic]
+    if not 0 <= lambda_ <= 1:
+        raise ValueError("lambda_ must be between 0 and 1")
+    phi_arr = array(phi, dtype=float)
+    if phi_arr.ndim != 2:
+        raise ValueError("phi must be a 2D words x topics matrix")
+    if not 0 <= topic < phi_arr.shape[1]:
+        raise IndexError("topic is out of bounds")
+    topic_probs = (
+        np.full(phi_arr.shape[1], 1 / phi_arr.shape[1])
+        if p_t is None
+        else array(p_t, dtype=float)
+    )
+    if topic_probs.ndim != 1 or topic_probs.shape[0] != phi_arr.shape[1]:
+        raise ValueError("p_t length must match the number of topics")
+    p_marg = calc_terms_marg_probs(phi_arr, topic_probs)
+    phi_topic = phi_arr[:, topic]
 
     # relevance = lambda * log(p(w | t)) + (1 - lambda) * log(p(w | t) / p(w))
-    relevance = lambda_ * nplog(phi_topic) + (1 - lambda_) * nplog(
-        phi_topic / phi.sum(axis=1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        relevance = lambda_ * nplog(phi_topic) + (1 - lambda_) * nplog(
+            np.divide(phi_topic, p_marg, out=np.zeros_like(phi_topic), where=p_marg > 0)
+        )
+    relevance = Series(
+        relevance,
+        index=phi.index if isinstance(phi, DataFrame) else None,
     )
     return relevance.sort_values(ascending=False)

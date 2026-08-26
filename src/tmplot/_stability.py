@@ -91,8 +91,11 @@ def get_closest_topics(
     closest_topics = np.zeros(shape=(topics_num, models_num), dtype=int)
     closest_topics[:, ref] = np.arange(topics_num)
 
-    # Distance function selection
-    dist_func = dist_funcs.get(method, "sklb")
+    if method not in dist_funcs:
+        raise ValueError(
+            f"Unknown distance method {method!r}; choose from {sorted(dist_funcs)}"
+        )
+    dist_func = dist_funcs[method]
 
     # Distance values
     dist_vals = np.zeros(shape=(topics_num, models_num), dtype=float)
@@ -109,23 +112,33 @@ def get_closest_topics(
         # Get phi matrix for current model
         current_phi = get_phi(model)
 
+        shared_words = model_ref_phi.index.intersection(current_phi.index)
+        if shared_words.empty:
+            raise ValueError("models do not have any vocabulary terms in common")
+        ref_phi = model_ref_phi.loc[shared_words]
+        current_phi = current_phi.loc[shared_words]
+        ref_sums = ref_phi.sum(axis=0)
+        current_sums = current_phi.sum(axis=0)
+        if (ref_sums <= 0).any() or (current_sums <= 0).any():
+            raise ValueError("shared vocabulary has zero probability mass for a topic")
+        ref_phi = ref_phi / ref_sums
+        current_phi = current_phi / current_sums
+        current_topics_num = current_phi.shape[1]
+
         # Distance matrix for all topic pairs
-        all_vs_all_dists = np.zeros((topics_num, topics_num))
+        all_vs_all_dists = np.zeros((topics_num, current_topics_num))
 
         # Iterating over all topic pairs
         for t_ref in range(topics_num):
-            for t in range(topics_num):
+            for t in range(current_topics_num):
+                kwargs = {"top_words": top_words} if method == "jac" else {}
                 all_vs_all_dists[t_ref, t] = dist_func(
-                    model_ref_phi.iloc[:, t_ref], current_phi.iloc[:, t]
+                    ref_phi.iloc[:, t_ref], current_phi.iloc[:, t], **kwargs
                 )
 
         # Creating two arrays for the closest topics ids and distance values
-        if method == "jac":
-            closest_topics[:, mid] = np.argmax(all_vs_all_dists, axis=1)
-            dist_vals[:, mid] = np.max(all_vs_all_dists, axis=1)
-        else:
-            closest_topics[:, mid] = np.argmin(all_vs_all_dists, axis=1)
-            dist_vals[:, mid] = np.min(all_vs_all_dists, axis=1)
+        closest_topics[:, mid] = np.argmin(all_vs_all_dists, axis=1)
+        dist_vals[:, mid] = np.min(all_vs_all_dists, axis=1)
 
     return closest_topics, dist_vals
 
@@ -190,7 +203,8 @@ def get_stable_topics(
     ...     closest_topics, kldiv)
     """
     dist_arr = np.asarray(dist)
-    dist_ready = dist_arr / dist_arr.max() if norm else dist_arr.copy()
+    max_dist = dist_arr.max()
+    dist_ready = dist_arr / max_dist if norm and max_dist > 0 else dist_arr.copy()
     dist_ready = inverse_factor - dist_ready if inverse else dist_ready
     mask = np.sum(np.delete(dist_ready, ref, axis=1) >= thres, axis=1) >= thres_models
     return closest_topics[mask], dist_ready[mask]
