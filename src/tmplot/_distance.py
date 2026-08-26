@@ -1,5 +1,6 @@
 __all__ = ["get_topics_dist", "get_topics_scatter", "get_top_topic_words"]
 from typing import Optional, Union, List
+from inspect import signature
 from itertools import combinations
 from pandas import DataFrame, Index
 import numpy as np
@@ -229,10 +230,17 @@ def get_topics_scatter(
         np.fill_diagonal(transform_input, 1.0)
 
     elif method == "mds":
-        method_kws.setdefault("dissimilarity", "precomputed")
+        mds_params = signature(MDS.__init__).parameters
+        if "metric_mds" in mds_params:
+            # scikit-learn >= 1.9 deprecated `dissimilarity` in favor of `metric`
+            method_kws.setdefault("metric", "precomputed")
+        else:
+            method_kws.setdefault("dissimilarity", "precomputed")
         method_kws.setdefault("normalized_stress", "auto")
         method_kws.setdefault("n_init", 1)
-        method_kws.setdefault("init", "random")
+        if "init" in mds_params:
+            # `init` is a constructor argument only since scikit-learn 1.9
+            method_kws.setdefault("init", "random")
         transformer = MDS(**method_kws)
 
     elif method == "lle":
