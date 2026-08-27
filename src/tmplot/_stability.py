@@ -2,28 +2,8 @@ __all__ = ["get_closest_topics", "get_stable_topics"]
 from typing import List, Tuple, Any
 import numpy as np
 import tqdm
-from ._distance import (
-    _dist_klb,
-    _dist_sklb,
-    _dist_jsd,
-    _dist_jef,
-    _dist_hel,
-    _dist_bhat,
-    _dist_jac,
-    _dist_tv,
-)
+from ._distance import DIST_FUNCS as dist_funcs, _cross_dists
 from ._helpers import get_phi
-
-dist_funcs = {
-    "klb": _dist_klb,
-    "sklb": _dist_sklb,
-    "jsd": _dist_jsd,
-    "jef": _dist_jef,
-    "hel": _dist_hel,
-    "bhat": _dist_bhat,
-    "tv": _dist_tv,
-    "jac": _dist_jac,
-}
 
 
 def get_closest_topics(
@@ -75,8 +55,14 @@ def get_closest_topics(
     # Number of models passed
     models_num = len(models)
 
-    # Reference model id
-    ref = models_num - 1 if ref >= models_num else ref
+    if models_num == 0:
+        raise ValueError("at least one model is required")
+    if not 0 <= ref < models_num:
+        raise ValueError(f"ref must be in [0, {models_num - 1}], got {ref}")
+    if method not in dist_funcs:
+        raise ValueError(
+            f"Unknown distance method {method!r}; choose from {sorted(dist_funcs)}"
+        )
 
     # Reference model
     model_ref = models[ref]
@@ -91,11 +77,7 @@ def get_closest_topics(
     closest_topics = np.zeros(shape=(topics_num, models_num), dtype=int)
     closest_topics[:, ref] = np.arange(topics_num)
 
-    if method not in dist_funcs:
-        raise ValueError(
-            f"Unknown distance method {method!r}; choose from {sorted(dist_funcs)}"
-        )
-    dist_func = dist_funcs[method]
+    dist_kwargs = {"top_words": top_words} if method == "jac" else {}
 
     # Distance values
     dist_vals = np.zeros(shape=(topics_num, models_num), dtype=float)
@@ -123,18 +105,11 @@ def get_closest_topics(
             raise ValueError("shared vocabulary has zero probability mass for a topic")
         ref_phi = ref_phi / ref_sums
         current_phi = current_phi / current_sums
-        current_topics_num = current_phi.shape[1]
 
         # Distance matrix for all topic pairs
-        all_vs_all_dists = np.zeros((topics_num, current_topics_num))
-
-        # Iterating over all topic pairs
-        for t_ref in range(topics_num):
-            for t in range(current_topics_num):
-                kwargs = {"top_words": top_words} if method == "jac" else {}
-                all_vs_all_dists[t_ref, t] = dist_func(
-                    ref_phi.iloc[:, t_ref], current_phi.iloc[:, t], **kwargs
-                )
+        all_vs_all_dists = _cross_dists(
+            ref_phi.to_numpy(), current_phi.to_numpy(), method, **dist_kwargs
+        )
 
         # Creating two arrays for the closest topics ids and distance values
         closest_topics[:, mid] = np.argmin(all_vs_all_dists, axis=1)
@@ -202,7 +177,19 @@ def get_stable_topics(
     >>> stable_topics, stable_kldiv = tmplot.get_stable_topics(
     ...     closest_topics, kldiv)
     """
-    dist_arr = np.asarray(dist)
+    closest_topics = np.asarray(closest_topics)
+    dist_arr = np.asarray(dist, dtype=float)
+
+    if closest_topics.ndim != 2 or dist_arr.ndim != 2:
+        raise ValueError("closest_topics and dist must both be 2D arrays")
+    if closest_topics.shape != dist_arr.shape:
+        raise ValueError(
+            "closest_topics and dist must have the same shape, got "
+            f"{closest_topics.shape} and {dist_arr.shape}"
+        )
+    if not 0 <= ref < dist_arr.shape[1]:
+        raise ValueError(f"ref must be in [0, {dist_arr.shape[1] - 1}], got {ref}")
+
     max_dist = dist_arr.max()
     dist_ready = dist_arr / max_dist if norm and max_dist > 0 else dist_arr.copy()
     dist_ready = inverse_factor - dist_ready if inverse else dist_ready

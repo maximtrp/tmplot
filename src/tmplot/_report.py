@@ -21,6 +21,9 @@ def prepare_coords(
     corpus: Optional[List] = None,
     dist_kws: Optional[Dict] = None,
     scatter_kws: Optional[Dict] = None,
+    *,
+    phi: Optional[DataFrame] = None,
+    theta: Optional[DataFrame] = None,
 ) -> DataFrame:
     """Prepare coordinates for topics scatter plot.
 
@@ -36,14 +39,21 @@ def prepare_coords(
         Keyword arguments passed to :py:meth:`tmplot.get_topics_dist()`.
     scatter_kws : dict, optional
         Keyword arguments passed to :py:meth:`tmplot.get_topics_scatter()`.
+    phi : pandas.DataFrame, optional
+        Precomputed words vs topics matrix. Extracted from ``model`` if omitted.
+    theta : pandas.DataFrame, optional
+        Precomputed topics vs documents matrix. Extracted from ``model``
+        if omitted.
     """
     if not dist_kws:
         dist_kws = {}
     if not scatter_kws:
         scatter_kws = {}
 
-    phi = get_phi(model)
-    theta = get_theta(model, corpus=corpus)
+    if phi is None:
+        phi = get_phi(model)
+    if theta is None:
+        theta = get_theta(model, corpus=corpus)
     topics_dists = get_topics_dist(phi, **dist_kws)
     topics_coords = get_topics_scatter(topics_dists, theta, **scatter_kws)
     selected_labels = theta.index if labels is None else labels
@@ -111,7 +121,7 @@ def report(
         Report interface as a VBox instance.
     """
     # Input validation
-    if not docs or len(docs) == 0:
+    if docs is None or len(docs) == 0:
         raise ValueError("docs cannot be empty")
 
     _topics_kws = (
@@ -161,7 +171,22 @@ def report(
     # Children widgets list init
     children = []
 
+    # phi and theta are extracted once and reused everywhere below: for a
+    # tomotopy model get_theta walks every document, so recomputing it per
+    # widget is expensive.
+    phi = get_phi(model)
+    theta = None
+    p_t = None
+
+    def _get_theta():
+        nonlocal theta
+        if theta is None:
+            theta = get_theta(model, corpus=_coords_kws.get("corpus"))
+        return theta
+
     if show_topics and "topics_coords" not in _topics_kws:
+        _coords_kws.setdefault("phi", phi)
+        _coords_kws.setdefault("theta", _get_theta())
         topics_coords = prepare_coords(model, **_coords_kws)
         _topics_kws.update(
             {
@@ -172,19 +197,14 @@ def report(
             }
         )
 
-    phi = get_phi(model)
-    theta = None
-    p_t = None
-
     if show_words:
-        theta = get_theta(model, corpus=corpus)
-        p_t = calc_topics_marg_probs(theta)
+        p_t = calc_topics_marg_probs(_get_theta())
         if "terms_probs" not in _words_kws:
             terms_probs = calc_terms_probs_ratio(phi, topic=0, p_t=p_t)
             _words_kws.update({"terms_probs": terms_probs})
 
     if show_docs:
-        theta = get_theta(model, corpus=corpus) if theta is None else theta
+        theta = _get_theta()
         _top_docs_kws.setdefault("docs", docs)
         _top_docs_kws.setdefault("theta", theta.values)
         _top_docs_kws.setdefault("topics", [0])
@@ -241,8 +261,7 @@ def report(
         topics_plot_output.clear_output(wait=False)
         with topics_plot_output:
             if not scatter_cache:
-                scatter_theta = get_theta(model, corpus=_coords_kws.get("corpus"))
-                scatter_cache["theta"] = scatter_theta
+                scatter_cache["theta"] = _get_theta()
                 scatter_cache["distances"] = get_topics_dist(
                     phi, **_coords_kws.get("dist_kws", {})
                 )
@@ -340,7 +359,7 @@ def report(
         docs_num_slider = wdg.IntSlider(
             value=_top_docs_kws["docs_num"],
             min=1,
-            max=100,
+            max=max(100, _top_docs_kws["docs_num"]),
             continuous_update=False,
             orientation="horizontal",
             readout=True,

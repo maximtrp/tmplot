@@ -23,6 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Information Analysis",
     "Topic :: Text Processing :: General",
 ]
@@ -42,7 +43,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest", "coverage", "build", "twine"]
-models = ["tomotopy>=0.8.0", "gensim", "bitermplus"]
+models = ["tomotopy>=0.8.0", "gensim", "bitermplus>=1.0"]
 
 [tool.setuptools.dynamic]
 version = {attr = "tmplot.__version__"}

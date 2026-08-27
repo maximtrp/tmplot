@@ -3,7 +3,7 @@ import pickle as pkl
 from altair import LayerChart
 from tomotopy import LDAModel
 from src import tmplot as tm
-from numpy import random, floating, ndarray
+from numpy import random, floating, ndarray, allclose
 from ipywidgets import VBox
 
 
@@ -25,6 +25,40 @@ class TestTmplot(unittest.TestCase):
 
         self.phi = tm.get_phi(self.tomotopy_model)
         self.theta = tm.get_theta(self.tomotopy_model)
+
+    @staticmethod
+    def _btm_docs(seed=0, docs_num=60, doc_len=8):
+        rng = random.default_rng(seed)
+        vocabs = [[f"{p}{i}" for i in range(10)] for p in "abc"]
+        return [
+            " ".join(rng.choice(vocabs[rng.integers(0, 3)], size=doc_len))
+            for _ in range(docs_num)
+        ]
+
+    def _btm_classifier(self):
+        """A small fitted BTMClassifier.
+
+        The pickled BTM models cannot provide theta: since bitermplus 1.0 the
+        document-topic matrix is inferred from documents rather than stored on
+        the model, and the pickles do not carry their documents.
+        """
+        import bitermplus as btmplus
+
+        docs = self._btm_docs()
+        model = btmplus.BTMClassifier(n_topics=3, max_iter=30, random_state=1)
+        model.fit(docs)
+        return model, docs
+
+    def _btm_plain(self):
+        """A small fitted plain BTM plus the vectorized documents it needs."""
+        import bitermplus as btmplus
+
+        docs = self._btm_docs(seed=1)
+        counts, vocab, _ = btmplus.get_words_freqs(docs)
+        docs_vec = btmplus.get_vectorized_docs(docs, vocab)
+        model = btmplus.BTM(counts, vocab, seed=1, T=3, M=10, alpha=50 / 3, beta=0.01)
+        model.fit(btmplus.get_biterms(docs_vec), iterations=30, verbose=False)
+        return model, docs, docs_vec
 
     def _require_gensim(self):
         if self.gensim_model is None:
@@ -75,12 +109,12 @@ class TestTmplot(unittest.TestCase):
     def test_prepare_coords(self):
         topics_coords = tm.prepare_coords(self.tomotopy_model)
         self.assertTupleEqual(topics_coords.shape, (self.tomotopy_model.k, 5))
-        topics_coords = tm.prepare_coords(self.btm_model_big)
-        self.assertTupleEqual(topics_coords.shape, (self.btm_model_big.topics_num_, 5))
-        topics_coords = tm.prepare_coords(self.btm_model_small)
-        self.assertTupleEqual(
-            topics_coords.shape, (self.btm_model_small.topics_num_, 5)
-        )
+        classifier, _ = self._btm_classifier()
+        topics_coords = tm.prepare_coords(classifier)
+        self.assertTupleEqual(topics_coords.shape, (3, 5))
+        plain, _, docs_vec = self._btm_plain()
+        topics_coords = tm.prepare_coords(plain, corpus=docs_vec)
+        self.assertTupleEqual(topics_coords.shape, (3, 5))
 
     def test_get_topics_scatter(self):
         topics_dists = tm.get_topics_dist(self.phi)
@@ -171,12 +205,13 @@ class TestTmplot(unittest.TestCase):
         self.assertGreater(entropy2, 0)
 
     def test_entropy_single_topic(self):
-        # Test edge case with single topic (line 76 in _metrics.py)
+        # Renyi entropy is undefined at T = 1, where q = 1/T = 1 zeroes the
+        # F / (q - 1) denominator. bitermplus 1.0 raises here and so do we.
         import numpy as np
 
-        single_topic_phi = np.random.rand(1, 100)  # Create single topic phi matrix
-        entropy_single = tm.entropy(single_topic_phi)
-        self.assertIsInstance(entropy_single, float)
+        single_topic_phi = np.random.rand(1, 100)
+        with self.assertRaisesRegex(ValueError, "undefined for a single topic"):
+            tm.entropy(single_topic_phi)
 
     def test_get_salient_terms(self):
         saliency = tm.get_salient_terms(self.phi, self.theta)
@@ -487,12 +522,65 @@ class TestTmplot(unittest.TestCase):
         self.assertIsInstance(result, HTML)
 
     def test_btm_model_functionality(self):
-        # Test BTM model specific functionality to increase coverage
+        # phi comes straight off a fitted model, including the older pickles
         phi_btm = tm.get_phi(self.btm_model_big)
         self.assertGreater(phi_btm.shape[0], 0)
 
-        theta_btm = tm.get_theta(self.btm_model_big)
-        self.assertGreater(theta_btm.shape[0], 0)
+        # theta needs documents for a plain BTM since bitermplus 1.0
+        plain, _, docs_vec = self._btm_plain()
+        theta_btm = tm.get_theta(plain, corpus=docs_vec)
+        self.assertTupleEqual(theta_btm.shape, (3, 60))
+
+    def test_btm_theta_requires_a_corpus(self):
+        plain, _, _ = self._btm_plain()
+        with self.assertRaisesRegex(ValueError, "must be supplied"):
+            tm.get_theta(plain)
+
+    def test_btm_classifier_is_recognized(self):
+        classifier, _ = self._btm_classifier()
+        plain, _, _ = self._btm_plain()
+        self.assertTrue(tm._helpers._is_btmplus(classifier))
+        self.assertTrue(tm._helpers._is_btm_classifier(classifier))
+        # A plain BTM must not take the classifier path, or it would look for
+        # document-topic state that bitermplus 1.0 no longer keeps on it.
+        self.assertTrue(tm._helpers._is_btmplus(plain))
+        self.assertFalse(tm._helpers._is_btm_classifier(plain))
+        self.assertFalse(tm._helpers._is_btm_classifier(object()))
+
+    def test_btm_classifier_phi_matches_the_model(self):
+        classifier, _ = self._btm_classifier()
+        phi = tm.get_phi(classifier)
+        # Words x topics, holding the same numbers as the model's T x W matrix.
+        self.assertTupleEqual(phi.shape, (len(classifier.feature_names_out_), 3))
+        self.assertTrue(allclose(phi.values, classifier.topic_word_matrix_.T))
+        # Indexed by the vocabulary, in the model's own order.
+        self.assertListEqual(list(phi.index), list(classifier.feature_names_out_))
+        # Each topic is a distribution over words, as get_topics_dist requires.
+        self.assertTrue(allclose(phi.values.sum(axis=0), 1.0))
+
+    def test_btm_classifier_theta_matches_the_model(self):
+        classifier, docs = self._btm_classifier()
+        theta = tm.get_theta(classifier)
+        # Topics x documents, transposed from the model's docs x topics matrix.
+        self.assertTupleEqual(theta.shape, (3, len(docs)))
+        self.assertTrue(allclose(theta.values, classifier.matrix_docs_topics_.T))
+        # Each document is a distribution over topics.
+        self.assertTrue(allclose(theta.values.sum(axis=0), 1.0))
+
+    def test_btm_classifier_phi_and_theta_agree_on_topics(self):
+        classifier, _ = self._btm_classifier()
+        phi = tm.get_phi(classifier)
+        theta = tm.get_theta(classifier)
+        self.assertEqual(phi.shape[1], theta.shape[0])
+        self.assertListEqual(list(phi.columns), list(theta.index))
+
+    def test_btm_classifier_end_to_end(self):
+        classifier, docs = self._btm_classifier()
+        self.assertIsInstance(tm.report(classifier, docs), VBox)
+        top_docs = tm.get_top_docs(
+            docs, theta=tm.get_theta(classifier).values, docs_num=2, topics=[0]
+        )
+        self.assertTupleEqual(top_docs.shape, (2, 1))
 
     # Test package warning functionality (when packages aren't available)
     def test_package_warning_simulation(self):

@@ -1,10 +1,9 @@
 __all__ = ["get_topics_dist", "get_topics_scatter", "get_top_topic_words"]
 from typing import Optional, Union, List
 from inspect import signature
-from itertools import combinations
 from pandas import DataFrame, Index
 import numpy as np
-from scipy.special import kl_div
+from scipy.special import kl_div, xlogy
 from scipy.spatial import distance
 from sklearn.manifold import (
     TSNE,
@@ -17,6 +16,14 @@ from ._helpers import calc_topics_marg_probs
 
 
 EPSILON = 1e-64
+
+
+SCATTER_METHODS = ["tsne", "sem", "mds", "lle", "ltsa", "isomap"]
+
+
+def _validate_top_words(top_words: int) -> None:
+    if not isinstance(top_words, (int, np.integer)) or top_words < 1:
+        raise ValueError(f"top_words must be a positive integer, got {top_words!r}")
 
 
 def _positive_probabilities(values: np.ndarray) -> np.ndarray:
@@ -68,12 +75,146 @@ def _dist_tv(a1: np.ndarray, a2: np.ndarray):
 
 
 def _dist_jac(a1: np.ndarray, a2: np.ndarray, top_words=100):
+    _validate_top_words(top_words)
     a = np.argsort(a1)[: -top_words - 1 : -1]
     b = np.argsort(a2)[: -top_words - 1 : -1]
     j_num = np.intersect1d(a, b, assume_unique=False).size
     j_den = np.union1d(a, b).size
     jac_val = 1 - j_num / j_den
     return jac_val
+
+
+DIST_FUNCS = {
+    "klb": _dist_klb,
+    "sklb": _dist_sklb,
+    "jsd": _dist_jsd,
+    "jef": _dist_jef,
+    "hel": _dist_hel,
+    "bhat": _dist_bhat,
+    "tv": _dist_tv,
+    "jac": _dist_jac,
+}
+
+
+def _normalize_columns(values: np.ndarray) -> np.ndarray:
+    """Column-wise equivalent of :func:`_positive_probabilities`."""
+    values = np.clip(np.asarray(values, dtype=float), EPSILON, None)
+    return values / values.sum(axis=0, keepdims=True)
+
+
+def _sanitize_columns(values: np.ndarray) -> np.ndarray:
+    """Replace non-positive and non-finite entries with ``EPSILON``."""
+    values = np.array(values, dtype=float)
+    values[(values <= 0) | ~np.isfinite(values)] = EPSILON
+    return values
+
+
+def _cross_klb(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """KL divergence of every column of ``a`` from every column of ``b``."""
+    p_a = _normalize_columns(a)
+    p_b = _normalize_columns(b)
+    # KL(p || q) = sum_w p log p - sum_w p log q; the -p + q terms of ``kl_div``
+    # cancel because both columns are normalized.
+    self_term = np.einsum("wt,wt->t", p_a, np.log(p_a))
+    return self_term[:, None] - p_a.T @ np.log(p_b)
+
+
+def _cross_jsd(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    # With m = (p + q) / 2 the "-x + y" terms of kl_div cancel between the two
+    # halves, leaving JSD = 0.5 * sum xlogy(p, p/m) + 0.5 * sum xlogy(q, q/m).
+    # The xlogy(x, x) parts depend on a single column each, so they are hoisted
+    # out of the loop; only log(m) has to be recomputed per pair.
+    self_a = xlogy(a, a).sum(axis=0)
+    self_b = xlogy(b, b).sum(axis=0)
+    dists = np.empty((a.shape[1], b.shape[1]), dtype=float)
+    for col in range(b.shape[1]):
+        other = b[:, [col]]
+        mean = 0.5 * (a + other)
+        # m is zero only where both columns are zero, and x * 0 == 0 there.
+        log_mean = np.log(mean, where=mean > 0, out=np.zeros_like(mean))
+        dists[:, col] = 0.5 * (self_a - (a * log_mean).sum(axis=0)) + 0.5 * (
+            self_b[col] - (other * log_mean).sum(axis=0)
+        )
+    return dists
+
+
+def _cross_bhat(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    # The scalar version clamps the *product* a * b, so every word where either
+    # column is zero contributes sqrt(EPSILON) instead of zero.
+    a_clean = np.where(np.isfinite(a), np.clip(a, 0.0, None), 0.0)
+    b_clean = np.where(np.isfinite(b), np.clip(b, 0.0, None), 0.0)
+    coefficient = np.sqrt(a_clean).T @ np.sqrt(b_clean)
+    shared_support = (a_clean > 0).astype(float).T @ (b_clean > 0).astype(float)
+    clamped = (a.shape[0] - shared_support) * np.sqrt(EPSILON)
+    return -np.log(coefficient + clamped)
+
+
+def _top_words_mask(values: np.ndarray, top_words: int) -> np.ndarray:
+    """Boolean T x W matrix marking each column's ``top_words`` highest entries.
+
+    ``argsort`` (rather than the faster ``argpartition``) is used so that ties are
+    broken exactly as in :func:`_dist_jac`.
+    """
+    words_num, topics_num = values.shape
+    count = min(top_words, words_num)
+    top = np.argsort(values, axis=0)[-count:]
+    mask = np.zeros((topics_num, words_num), dtype=bool)
+    mask[np.repeat(np.arange(topics_num), count), top.T.ravel()] = True
+    return mask
+
+
+def _cross_jac(a: np.ndarray, b: np.ndarray, top_words: int = 100) -> np.ndarray:
+    _validate_top_words(top_words)
+    mask_a = _top_words_mask(a, top_words)
+    mask_b = _top_words_mask(b, top_words)
+    intersection = mask_a.astype(np.int32) @ mask_b.astype(np.int32).T
+    union = mask_a.sum(axis=1)[:, None] + mask_b.sum(axis=1)[None, :] - intersection
+    return 1 - intersection / union
+
+
+def _cross_dists(
+    a: np.ndarray, b: np.ndarray, method: str = "sklb", **kwargs
+) -> np.ndarray:
+    """Distances between every column of ``a`` and every column of ``b``.
+
+    Vectorized counterpart of the scalar ``_dist_*`` functions, which remain the
+    reference implementation. Returns an array of shape
+    ``(a.shape[1], b.shape[1])`` where entry ``[i, j]`` is the distance from
+    ``a[:, i]`` to ``b[:, j]``.
+    """
+    if method not in DIST_FUNCS:
+        raise ValueError(
+            f"Unknown distance method {method!r}; choose from {sorted(DIST_FUNCS)}"
+        )
+
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+
+    if method == "jac":
+        return _cross_jac(a, b, **kwargs)
+    if kwargs:
+        unexpected = ", ".join(sorted(kwargs))
+        raise TypeError(
+            f"unexpected keyword arguments for method {method!r}: {unexpected}"
+        )
+
+    if method == "klb":
+        return _cross_klb(a, b)
+    if method in ("sklb", "jef"):
+        # Jeffrey's divergence equals the symmetric KL divergence for
+        # normalized distributions.
+        return _cross_klb(a, b) + _cross_klb(b, a).T
+    if method == "jsd":
+        return _cross_jsd(a, b)
+    if method == "hel":
+        root_a = np.sqrt(_sanitize_columns(a))
+        root_b = np.sqrt(_sanitize_columns(b))
+        return distance.cdist(root_a.T, root_b.T, "euclidean") / np.sqrt(2)
+    if method == "bhat":
+        return _cross_bhat(a, b)
+    if method == "tv":
+        return distance.cdist(a.T, b.T, "cityblock") / 2
+    raise AssertionError(f"validated distance method {method!r} was not handled")
 
 
 def get_topics_dist(
@@ -112,45 +253,32 @@ def get_topics_dist(
     if not np.allclose(phi_copy.sum(axis=0), 1.0, atol=1e-6):
         raise ValueError("phi columns must sum to 1 (probability distributions)")
 
-    topics_num = phi_copy.shape[1]
-    topics_pairs = combinations(range(topics_num), 2)
+    topics_dists = _cross_dists(phi_copy, phi_copy, method, **kwargs)
 
-    # Topics distances matrix
-    topics_dists = np.zeros(shape=(topics_num, topics_num), dtype=float)
-
-    dist_funcs = {
-        "klb": _dist_klb,
-        "sklb": _dist_sklb,
-        "jsd": _dist_jsd,
-        "jef": _dist_jef,
-        "hel": _dist_hel,
-        "bhat": _dist_bhat,
-        "tv": _dist_tv,
-        "jac": _dist_jac,
-    }
-
-    if method not in dist_funcs:
-        raise ValueError(
-            f"Unknown distance method {method!r}; choose from {sorted(dist_funcs)}"
-        )
-    _dist_func = dist_funcs[method]
-    for i, j in topics_pairs:
-        topics_dists[((i, j), (j, i))] = _dist_func(
-            phi_copy[:, i], phi_copy[:, j], **kwargs
-        )
-
-    return topics_dists
+    # Asymmetric divergences (e.g. "klb") are mirrored across the diagonal: the
+    # value computed for the pair (i, j) with i < j is stored in both [i, j] and
+    # [j, i]. Downstream consumers such as get_topics_scatter require a
+    # symmetric matrix.
+    upper = np.triu(topics_dists, 1)
+    return upper + upper.T
 
 
-def _classical_mds(distances: np.ndarray) -> np.ndarray:
+def _classical_mds(distances: np.ndarray, n_components: int = 2) -> np.ndarray:
     count = distances.shape[0]
     centering = np.eye(count) - np.ones((count, count)) / count
     gram = -0.5 * centering @ (distances**2) @ centering
     eigenvalues, eigenvectors = np.linalg.eigh(gram)
     positive = eigenvalues > np.finfo(float).eps
-    if not positive.any():
-        return np.zeros((count, 1))
-    return eigenvectors[:, positive] * np.sqrt(eigenvalues[positive])
+    coords = eigenvectors[:, positive] * np.sqrt(eigenvalues[positive])
+
+    # LocallyLinearEmbedding rejects an input with fewer dimensions than it is
+    # asked to produce. A degenerate distance matrix - identical topics, or a
+    # model that never separated - leaves fewer positive eigenvalues than that,
+    # so pad with zero columns instead of handing over a narrower matrix.
+    if coords.shape[1] < n_components:
+        padding = np.zeros((count, n_components - coords.shape[1]))
+        coords = np.hstack([coords, padding])
+    return coords
 
 
 def get_topics_scatter(
@@ -197,10 +325,9 @@ def get_topics_scatter(
     if topic_dists.shape[0] < 2:
         raise ValueError("at least two topics are required for scatter coordinates")
 
-    valid_methods = ["tsne", "sem", "mds", "lle", "ltsa", "isomap"]
-    if method not in valid_methods:
+    if method not in SCATTER_METHODS:
         raise ValueError(
-            f"Unknown scatter method {method!r}; choose from {valid_methods}"
+            f"Unknown scatter method {method!r}; choose from {SCATTER_METHODS}"
         )
 
     if topic_dists.shape[0] == 2:
@@ -213,6 +340,10 @@ def get_topics_scatter(
 
     method_kws = dict(method_kws or {})
     method_kws.setdefault("n_components", 2)
+
+    # Most methods consume the distance matrix directly; the branches below
+    # override this when a method needs a different representation.
+    transform_input = topic_dists
 
     if method == "tsne":
         method_kws.setdefault("metric", "precomputed")
@@ -247,13 +378,13 @@ def get_topics_scatter(
         method_kws["method"] = "standard"
         method_kws.setdefault("n_neighbors", min(5, topic_dists.shape[0] - 1))
         transformer = LocallyLinearEmbedding(**method_kws)
-        transform_input = _classical_mds(topic_dists)
+        transform_input = _classical_mds(topic_dists, method_kws["n_components"])
 
     elif method == "ltsa":
         method_kws["method"] = "ltsa"
         method_kws.setdefault("n_neighbors", min(5, topic_dists.shape[0] - 1))
         transformer = LocallyLinearEmbedding(**method_kws)
-        transform_input = _classical_mds(topic_dists)
+        transform_input = _classical_mds(topic_dists, method_kws["n_components"])
 
     elif method == "isomap":
         method_kws.setdefault("metric", "precomputed")
@@ -263,16 +394,13 @@ def get_topics_scatter(
     else:
         raise AssertionError("validated scatter method was not handled")
 
-    coords = transformer.fit_transform(locals().get("transform_input", topic_dists))
+    coords = transformer.fit_transform(transform_input)
 
     topics_xy = DataFrame(coords, columns=Index(["x", "y"]))
     topics_xy["topic"] = topics_xy.index.astype(int)
-    topics_xy["size"] = calc_topics_marg_probs(theta)
-    size_sum = topics_xy["size"].sum()
-    if size_sum > 0:
-        topics_xy["size"] *= 100 / topics_xy["size"].sum()
-    else:
-        topics_xy["size"] = np.nan
+    # calc_topics_marg_probs already rejects an all-zero theta and returns
+    # probabilities summing to 1, so scaling to percentages is unconditional.
+    topics_xy["size"] = calc_topics_marg_probs(theta) * 100
     return topics_xy
 
 

@@ -46,6 +46,7 @@ bitermplus_installed = find_spec("bitermplus")
 if bitermplus_installed:
     try:
         from bitermplus._btm import BTM
+        from bitermplus import BTMClassifier
     except (ImportError, OSError):
         bitermplus_installed = None
 
@@ -70,6 +71,38 @@ def _warn_missing_model_packages() -> None:
         )
 
 
+def _live_topic_ids(model: object) -> List[int]:
+    """Topic ids worth exposing for a fitted ``tomotopy`` model.
+
+    Nonparametric models (``HDPModel``) allocate topics that die out during
+    sampling. ``model.k`` keeps counting them, but their word distributions are
+    uniform placeholders carrying no document mass, so they would otherwise
+    appear as spurious topics in every downstream analysis - distance matrices,
+    scatter plots and, most damagingly, entropy-based estimates of the optimal
+    number of topics.
+    """
+    if not hasattr(model, "is_live_topic"):
+        return list(range(model.k))
+
+    live = [topic for topic in range(model.k) if model.is_live_topic(topic)]
+    if not live:
+        raise ValueError(
+            f"This {type(model).__name__} has no live topics: all {model.k} "
+            "allocated topics died out during training. The model is probably "
+            "undertrained, or the corpus too small to support any topic."
+        )
+    dropped = model.k - len(live)
+    if dropped:
+        warn(
+            f"Dropped {dropped} dead topic(s) out of {model.k} from this "
+            f"{type(model).__name__}; {len(live)} live topics remain. Topic ids "
+            "are preserved as the phi columns / theta index.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return live
+
+
 def get_phi(model: object, vocabulary: Optional[Sequence] = None) -> DataFrame:
     """Get words vs topics matrix (phi).
 
@@ -92,11 +125,12 @@ def get_phi(model: object, vocabulary: Optional[Sequence] = None) -> DataFrame:
     phi = None
 
     if _is_tomotopy(model):
-        # Topics vs words distributions
-        twd = list(map(model.get_topic_word_dist, range(model.k)))
+        # Topics vs words distributions, skipping topics that died out
+        topic_ids = _live_topic_ids(model)
+        twd = list(map(model.get_topic_word_dist, topic_ids))
 
-        # Concatenating into DataFrame
-        phi = DataFrame(vstack(twd).T)
+        # Concatenating into DataFrame, keeping the model's own topic ids
+        phi = DataFrame(vstack(twd).T, columns=topic_ids)
 
         # Specifying terms from vocabulary as index
         phi.index = list(model.used_vocabs)
@@ -107,6 +141,11 @@ def get_phi(model: object, vocabulary: Optional[Sequence] = None) -> DataFrame:
             if len(vocabulary) != phi.shape[0]:
                 raise ValueError("vocabulary length must match the number of words")
             phi.index = vocabulary
+
+    elif _is_btm_classifier(model):
+        # The wrapped BTM exposes phi as a words x topics frame already
+        # indexed by the vocabulary.
+        phi = model.model_.df_words_topics_
 
     elif _is_btmplus(model):
         phi = model.df_words_topics_
@@ -148,9 +187,14 @@ def _is_gensim(model: object) -> bool:
 
 def _is_btmplus(model: object) -> bool:
     if bitermplus_installed:
-        return isinstance(model, BTM)
+        return isinstance(model, (BTM, BTMClassifier))
 
     return False
+
+
+def _is_btm_classifier(model: object) -> bool:
+    """``BTMClassifier`` keeps document-topic state that plain ``BTM`` does not."""
+    return bool(bitermplus_installed and isinstance(model, BTMClassifier))
 
 
 def get_theta(model: object, corpus: Optional[List] = None) -> Optional[DataFrame]:
@@ -164,7 +208,10 @@ def get_theta(model: object, corpus: Optional[List] = None) -> Optional[DataFram
     model : object
         Topic model instance.
     corpus : Optional[List], optional
-        Corpus (must be specified for a `gensim` model).
+        Corpus. Required for a `gensim` model (bag-of-words corpus) and for a
+        plain `bitermplus` ``BTM`` model (vectorized documents from
+        ``bitermplus.get_vectorized_docs()``). Not needed for ``tomotopy``
+        models or for ``BTMClassifier``.
 
     Returns
     -------
@@ -174,8 +221,11 @@ def get_theta(model: object, corpus: Optional[List] = None) -> Optional[DataFram
     theta = None
 
     if _is_tomotopy(model):
+        # get_topic_dist() spans all model.k topics; keep only the live ones so
+        # that theta stays aligned with get_phi.
+        topic_ids = _live_topic_ids(model)
         tdd = list(map(lambda x: x.get_topic_dist(), model.docs))
-        theta = DataFrame(vstack(tdd).T)
+        theta = DataFrame(vstack(tdd).T).iloc[topic_ids]
 
     elif _is_gensim(model):
         if corpus is None:
@@ -189,8 +239,21 @@ def get_theta(model: object, corpus: Optional[List] = None) -> Optional[DataFram
                 theta_values[doc_id, topic_id] = topic_prob
         theta = DataFrame(theta_values.T)
 
+    elif _is_btm_classifier(model):
+        # Fitted over the training documents, so no corpus is needed.
+        theta = DataFrame(model.matrix_docs_topics_).T
+
     elif _is_btmplus(model):
-        theta = DataFrame(model.matrix_topics_docs_)
+        if corpus is None:
+            raise ValueError(
+                "`corpus` must be supplied for a bitermplus BTM model. Since "
+                "bitermplus 1.0 the document-topic matrix is not stored on the "
+                "model, because p(z|d) is inferred per document rather than "
+                "fitted. Pass the vectorized documents returned by "
+                "bitermplus.get_vectorized_docs(), or use BTMClassifier, which "
+                "keeps matrix_docs_topics_ for its training documents."
+            )
+        theta = DataFrame(model.transform(corpus, verbose=False)).T
     else:
         _warn_missing_model_packages()
         raise ValueError(f"Unsupported model type: {type(model)}")
@@ -282,7 +345,16 @@ def get_top_docs(
         return result
 
     topics_num = theta.shape[0]
-    topics_idx = arange(topics_num) if topics is None else topics
+    if topics is None:
+        topics_idx = arange(topics_num)
+    else:
+        topics_idx = array(topics)
+        out_of_range = topics_idx[(topics_idx < 0) | (topics_idx >= topics_num)]
+        if out_of_range.size:
+            raise IndexError(
+                f"topics contains indices outside [0, {topics_num - 1}]: "
+                f"{sorted(set(out_of_range.tolist()))}"
+            )
     return concat(map(lambda x: _select_docs(docs, theta, x), topics_idx), axis=1)
 
 
@@ -429,6 +501,37 @@ def get_salient_terms(phi: ndarray, theta: ndarray) -> ndarray:
     return saliency
 
 
+def _calc_relevance(
+    phi: Union[ndarray, DataFrame],
+    topic: int,
+    lambda_: float = 0.6,
+    p_t: Optional[ndarray] = None,
+) -> ndarray:
+    """Relevance of every term for ``topic``, in the row order of ``phi``."""
+    if not 0 <= lambda_ <= 1:
+        raise ValueError("lambda_ must be between 0 and 1")
+    phi_arr = array(phi, dtype=float)
+    if phi_arr.ndim != 2:
+        raise ValueError("phi must be a 2D words x topics matrix")
+    if not 0 <= topic < phi_arr.shape[1]:
+        raise IndexError("topic is out of bounds")
+    topic_probs = (
+        np.full(phi_arr.shape[1], 1 / phi_arr.shape[1])
+        if p_t is None
+        else array(p_t, dtype=float)
+    )
+    if topic_probs.ndim != 1 or topic_probs.shape[0] != phi_arr.shape[1]:
+        raise ValueError("p_t length must match the number of topics")
+    p_marg = calc_terms_marg_probs(phi_arr, topic_probs)
+    phi_topic = phi_arr[:, topic]
+
+    # relevance = lambda * log(p(w | t)) + (1 - lambda) * log(p(w | t) / p(w))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return lambda_ * nplog(phi_topic) + (1 - lambda_) * nplog(
+            np.divide(phi_topic, p_marg, out=np.zeros_like(phi_topic), where=p_marg > 0)
+        )
+
+
 def calc_terms_probs_ratio(
     phi: DataFrame,
     topic: int,
@@ -479,8 +582,11 @@ def calc_terms_probs_ratio(
     p_marg = Series(marginal, index=index, name=p_marg_name)
 
     terms_probs = concat((p_marg, p_cond), axis=1)
-    relevant_idx = get_relevant_terms(phi, topic, lambda_, p_t=p_t).index
-    terms_probs_slice = terms_probs.loc[relevant_idx].head(terms_num)
+    relevance = _calc_relevance(phi, topic, lambda_, p_t=p_t)
+    # Rank positionally: a duplicated word label would make a .loc lookup on the
+    # sorted labels expand into a cross product and crowd out relevant terms.
+    order = Series(relevance).sort_values(ascending=False).index.to_numpy()
+    terms_probs_slice = terms_probs.iloc[order[:terms_num]]
 
     return (
         terms_probs_slice.rename_axis("Terms")
@@ -524,28 +630,7 @@ def get_relevant_terms(
     pandas.Series
         Terms sorted by relevance (descendingly).
     """
-    if not 0 <= lambda_ <= 1:
-        raise ValueError("lambda_ must be between 0 and 1")
-    phi_arr = array(phi, dtype=float)
-    if phi_arr.ndim != 2:
-        raise ValueError("phi must be a 2D words x topics matrix")
-    if not 0 <= topic < phi_arr.shape[1]:
-        raise IndexError("topic is out of bounds")
-    topic_probs = (
-        np.full(phi_arr.shape[1], 1 / phi_arr.shape[1])
-        if p_t is None
-        else array(p_t, dtype=float)
-    )
-    if topic_probs.ndim != 1 or topic_probs.shape[0] != phi_arr.shape[1]:
-        raise ValueError("p_t length must match the number of topics")
-    p_marg = calc_terms_marg_probs(phi_arr, topic_probs)
-    phi_topic = phi_arr[:, topic]
-
-    # relevance = lambda * log(p(w | t)) + (1 - lambda) * log(p(w | t) / p(w))
-    with np.errstate(divide="ignore", invalid="ignore"):
-        relevance = lambda_ * nplog(phi_topic) + (1 - lambda_) * nplog(
-            np.divide(phi_topic, p_marg, out=np.zeros_like(phi_topic), where=p_marg > 0)
-        )
+    relevance = _calc_relevance(phi, topic, lambda_, p_t=p_t)
     relevance = Series(
         relevance,
         index=phi.index if isinstance(phi, DataFrame) else None,

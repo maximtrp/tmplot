@@ -112,13 +112,6 @@ def plot_scatter_topics(
     if not text_kws:
         text_kws = {"align": "center", "baseline": "middle"}
 
-    if not color_kws:
-        color_kws = (
-            {}
-            if topic is None
-            else {"condition": {"test": f"datum['topic'] == {topic}", "value": "red"}}
-        )
-
     # Input validation
     if isinstance(topics_coords, ndarray):
         if topics_coords.size == 0:
@@ -146,6 +139,20 @@ def plot_scatter_topics(
     if not topic_col:
         topic_col = "topic"
         data = data.assign(**{topic_col: range(len(topics_coords))})
+
+    # Built after topic_col is resolved so the highlight targets the column
+    # actually present in the data.
+    if not color_kws:
+        color_kws = (
+            {}
+            if topic is None
+            else {
+                "condition": {
+                    "test": f"datum[{topic_col!r}] == {topic}",
+                    "value": "red",
+                }
+            }
+        )
 
     if not text_enc_kws:
         text_enc_kws = {
