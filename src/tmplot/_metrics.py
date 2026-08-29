@@ -1,8 +1,10 @@
 """Metrics module"""
+from __future__ import annotations
 
 from math import log
 from typing import Optional
 from warnings import warn
+
 import numpy as np
 
 __all__ = ["entropy"]

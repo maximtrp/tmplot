@@ -1,0 +1,31 @@
+[FORMAT]
+max-line-length=120
+
+[MESSAGES CONTROL]
+# Design metrics: the plotting and report wrappers legitimately take many
+# keyword arguments. invalid-name/unused-argument come off because ruff's
+# N/ARG cover them and support per-file scoping, which pylint cannot express.
+disable=too-many-arguments,
+        too-many-positional-arguments,
+        too-many-branches,
+        too-many-statements,
+        too-many-locals,
+        too-many-instance-attributes,
+        too-many-public-methods,
+        too-many-return-statements,
+        too-many-lines,
+        too-few-public-methods,
+        duplicate-code,
+        import-outside-toplevel,
+        missing-module-docstring,
+        missing-class-docstring,
+        missing-function-docstring,
+        invalid-name,
+        unused-argument,
+        # The regression suite exercises the private adapter helpers directly.
+        protected-access,
+        # tomotopy/gensim/bitermplus are optional extras that need not be
+        # present in the analysis environment; ruff catches real import errors.
+        import-error,
+        # The module-header TODOs are a roadmap, not defects.
+        fixme

@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 __all__ = ["prepare_coords", "report"]
-from typing import Dict, Optional, Sequence, List
+from collections.abc import Sequence
 from copy import deepcopy
+from typing import Optional
+
 from IPython.display import display
 from ipywidgets import widgets as wdg
 from pandas import DataFrame
+
 from ._distance import get_topics_dist, get_topics_scatter
-from ._vis import plot_scatter_topics, plot_terms, plot_docs
 from ._helpers import (
     calc_terms_probs_ratio,
     calc_topics_marg_probs,
@@ -13,14 +17,15 @@ from ._helpers import (
     get_theta,
     get_top_docs,
 )
+from ._vis import plot_docs, plot_scatter_topics, plot_terms
 
 
 def prepare_coords(
     model: object,
     labels: Optional[Sequence] = None,
-    corpus: Optional[List] = None,
-    dist_kws: Optional[Dict] = None,
-    scatter_kws: Optional[Dict] = None,
+    corpus: Optional[list] = None,
+    dist_kws: Optional[dict] = None,
+    scatter_kws: Optional[dict] = None,
     *,
     phi: Optional[DataFrame] = None,
     theta: Optional[DataFrame] = None,
@@ -68,7 +73,7 @@ def report(
     docs: Sequence[str],
     *,
     topics_labels: Optional[Sequence[str]] = None,
-    corpus: Optional[List] = None,
+    corpus: Optional[list] = None,
     layout: Optional[wdg.Layout] = None,
     show_headers: bool = True,
     show_docs: bool = True,
@@ -96,6 +101,10 @@ def report(
         Gensim corpus (must be specified if you are using a `gensim` model).
     layout : wdg.Layout, optional
         Interface layout instance.
+    height : int, optional
+        Height of the embedded charts, in pixels.
+    width : int, optional
+        Width of the embedded charts, in pixels.
     show_headers : bool, optional
         Show headers.
     show_docs : bool, optional
@@ -160,12 +169,7 @@ def report(
     # Layout init
     grid_cols = " ".join(["1fr"] * sum([show_docs, show_words, show_topics]))
     layout = (
-        wdg.Layout(
-            grid_template_columns=grid_cols,
-            # justify_items='center'
-        )
-        if not layout
-        else layout
+        layout if layout else wdg.Layout(grid_template_columns=grid_cols)
     )
 
     # Children widgets list init
@@ -305,7 +309,7 @@ def report(
     # Words
     if show_words:
 
-        def _on_select_lambda(sel):
+        def _on_select_lambda(sel):  # noqa: ARG001 - ipywidgets observer signature
             topic = select_topic.value
             lambda_ = lambda_slider.value
             words_plot_output.clear_output(wait=False)
@@ -384,6 +388,4 @@ def report(
 
     grid_box = wdg.GridBox(children, layout=layout)
     hr_line = wdg.HTML('<hr style="border: 0; border-bottom: 1px solid #aaa">')
-    app = wdg.VBox([select_topic_wrapper, hr_line, grid_box])
-
-    return app
+    return wdg.VBox([select_topic_wrapper, hr_line, grid_box])

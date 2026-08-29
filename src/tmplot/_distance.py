@@ -1,19 +1,22 @@
-__all__ = ["get_topics_dist", "get_topics_scatter", "get_top_topic_words"]
-from typing import Optional, Union, List
+from __future__ import annotations
+
+__all__ = ["get_top_topic_words", "get_topics_dist", "get_topics_scatter"]
 from inspect import signature
-from pandas import DataFrame, Index
+from typing import Optional, Union
+
 import numpy as np
-from scipy.special import kl_div, xlogy
+from pandas import DataFrame, Index
 from scipy.spatial import distance
+from scipy.special import kl_div, xlogy
 from sklearn.manifold import (
+    MDS,
     TSNE,
     Isomap,
     LocallyLinearEmbedding,
-    MDS,
     SpectralEmbedding,
 )
-from ._helpers import calc_topics_marg_probs
 
+from ._helpers import calc_topics_marg_probs
 
 EPSILON = 1e-64
 
@@ -58,20 +61,17 @@ def _dist_hel(a1: np.ndarray, a2: np.ndarray):
     a2_safe = a2.copy()
     a1_safe[(a1_safe <= 0) | ~np.isfinite(a1_safe)] = EPSILON
     a2_safe[(a2_safe <= 0) | ~np.isfinite(a2_safe)] = EPSILON
-    hel_val = distance.euclidean(np.sqrt(a1_safe), np.sqrt(a2_safe)) / np.sqrt(2)
-    return hel_val
+    return distance.euclidean(np.sqrt(a1_safe), np.sqrt(a2_safe)) / np.sqrt(2)
 
 
 def _dist_bhat(a1: np.ndarray, a2: np.ndarray):
     pq = a1 * a2
     pq[(pq <= 0) | ~np.isfinite(pq)] = EPSILON
-    dist = -np.log(np.sum(np.sqrt(pq)))
-    return dist
+    return -np.log(np.sum(np.sqrt(pq)))
 
 
 def _dist_tv(a1: np.ndarray, a2: np.ndarray):
-    dist = np.sum(np.abs(a1 - a2)) / 2
-    return dist
+    return np.sum(np.abs(a1 - a2)) / 2
 
 
 def _dist_jac(a1: np.ndarray, a2: np.ndarray, top_words=100):
@@ -80,8 +80,7 @@ def _dist_jac(a1: np.ndarray, a2: np.ndarray, top_words=100):
     b = np.argsort(a2)[: -top_words - 1 : -1]
     j_num = np.intersect1d(a, b, assume_unique=False).size
     j_den = np.union1d(a, b).size
-    jac_val = 1 - j_num / j_den
-    return jac_val
+    return 1 - j_num / j_den
 
 
 DIST_FUNCS = {
@@ -203,7 +202,7 @@ def _cross_dists(
     if method in ("sklb", "jef"):
         # Jeffrey's divergence equals the symmetric KL divergence for
         # normalized distributions.
-        return _cross_klb(a, b) + _cross_klb(b, a).T
+        return _cross_klb(a, b) + _cross_klb(b, a).T  # pylint: disable=arguments-out-of-order
     if method == "jsd":
         return _cross_jsd(a, b)
     if method == "hel":
@@ -407,7 +406,7 @@ def get_topics_scatter(
 def get_top_topic_words(
     phi: DataFrame,
     words_num: int = 20,
-    topics_idx: Optional[Union[List[int], np.ndarray]] = None,
+    topics_idx: Optional[Union[list[int], np.ndarray]] = None,
 ) -> DataFrame:
     """Select top topic words from a fitted model.
 

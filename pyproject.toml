@@ -53,3 +53,35 @@ log_cli = true
 log_cli_level = "INFO"
 log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+extend-exclude = ["build", "dist", "temp", "docs"]
+
+[tool.ruff.lint]
+select = [
+    "F", "E", "W", "B", "I", "N", "UP", "SIM", "RET", "ARG", "C4",
+    "PD", "NPY", "PT", "PTH", "A", "RUF", "PLC", "PLE", "PLW",
+    "BLE",
+]
+ignore = [
+    "E501",    # the formatter's job
+    "PLC0415", # optional-model imports are deliberately local
+    # `X | None` is only a runtime type on 3.10+; the package supports 3.9
+    # and the annotations stay introspectable for docs tooling.
+    "UP007",
+    "UP045",
+    # The re-export noqa markers in __init__.py are for pyflakes/prospector,
+    # which ruff does not need but Codacy still runs.
+    "RUF100",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# SIM117: nesting the expected failure inside the mock setup keeps the two
+# apart. N811: aliasing an import to say where it came from is the point.
+"tests/**" = [
+    "S101", "ARG", "N806", "NPY002", "PTH", "PT009", "PT027",
+    "SIM117", "N811",
+]
+"docs/**" = ["A001", "INP001"]

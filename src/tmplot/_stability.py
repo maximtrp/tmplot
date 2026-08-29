@@ -1,18 +1,22 @@
+from __future__ import annotations
+
 __all__ = ["get_closest_topics", "get_stable_topics"]
-from typing import List, Tuple, Any
+from typing import Any
+
 import numpy as np
 import tqdm
-from ._distance import DIST_FUNCS as dist_funcs, _cross_dists
+
+from ._distance import DIST_FUNCS, _cross_dists
 from ._helpers import get_phi
 
 
 def get_closest_topics(
-    models: List[Any],
+    models: list[Any],
     ref: int = 0,
     method: str = "sklb",
     top_words: int = 100,
     verbose: bool = True,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Finding closest topics in models.
 
     Parameters
@@ -59,9 +63,9 @@ def get_closest_topics(
         raise ValueError("at least one model is required")
     if not 0 <= ref < models_num:
         raise ValueError(f"ref must be in [0, {models_num - 1}], got {ref}")
-    if method not in dist_funcs:
+    if method not in DIST_FUNCS:
         raise ValueError(
-            f"Unknown distance method {method!r}; choose from {sorted(dist_funcs)}"
+            f"Unknown distance method {method!r}; choose from {sorted(DIST_FUNCS)}"
         )
 
     # Reference model
@@ -127,7 +131,7 @@ def get_stable_topics(
     ref: int = 0,
     thres: float = 0.9,
     thres_models: int = 2,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Finding stable topics in models.
 
     Parameters

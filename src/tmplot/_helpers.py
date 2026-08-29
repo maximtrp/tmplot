@@ -1,35 +1,53 @@
+from __future__ import annotations
+
 __all__ = [
+    "calc_terms_marg_probs",
+    "calc_terms_probs_ratio",
+    "calc_topics_marg_probs",
+    "get_docs",
     "get_phi",
-    "get_theta",
     "get_relevant_terms",
     "get_salient_terms",
-    "get_docs",
+    "get_theta",
     "get_top_docs",
-    "calc_terms_marg_probs",
-    "calc_topics_marg_probs",
-    "calc_terms_probs_ratio",
 ]
-from importlib.util import find_spec
-from warnings import warn
-from typing import Union, Optional, Sequence, List
+from collections.abc import Sequence
 from functools import partial
-from numpy import ndarray, zeros, array, arange, vstack
-from numpy import log as nplog
+from importlib.util import find_spec
+from typing import Optional, Union
+from warnings import warn
+
 import numpy as np
-from pandas import concat, Series, DataFrame
+from numpy import arange, array, ndarray, vstack, zeros
+from numpy import log as nplog
+from pandas import DataFrame, Series, concat
 
 tomotopy_installed = find_spec("tomotopy")
 if tomotopy_installed:
     try:
         from tomotopy import (
-            LDAModel as tomotopyLDA,
-            LLDAModel as tomotopyLLDA,
             CTModel as tomotopyCT,
+        )
+        from tomotopy import (
             DMRModel as tomotopyDMR,
-            HDPModel as tomotopyHDP,
-            PTModel as tomotopyPT,
-            SLDAModel as tomotopySLDA,
+        )
+        from tomotopy import (
             GDMRModel as tomotopyGDMR,
+        )
+        from tomotopy import (
+            HDPModel as tomotopyHDP,
+        )
+        from tomotopy import (
+            LDAModel as tomotopyLDA,
+        )
+        from tomotopy import (
+            LLDAModel as tomotopyLLDA,
+        )
+        from tomotopy import (
+            PTModel as tomotopyPT,
+        )
+        from tomotopy import (
+            SLDAModel as tomotopySLDA,
         )
     except (ImportError, OSError):
         tomotopy_installed = None
@@ -45,8 +63,8 @@ if gensim_installed:
 bitermplus_installed = find_spec("bitermplus")
 if bitermplus_installed:
     try:
-        from bitermplus._btm import BTM
         from bitermplus import BTMClassifier
+        from bitermplus._btm import BTM
     except (ImportError, OSError):
         bitermplus_installed = None
 
@@ -71,7 +89,7 @@ def _warn_missing_model_packages() -> None:
         )
 
 
-def _live_topic_ids(model: object) -> List[int]:
+def _live_topic_ids(model: object) -> list[int]:
     """Topic ids worth exposing for a fitted ``tomotopy`` model.
 
     Nonparametric models (``HDPModel``) allocate topics that die out during
@@ -197,7 +215,7 @@ def _is_btm_classifier(model: object) -> bool:
     return bool(bitermplus_installed and isinstance(model, BTMClassifier))
 
 
-def get_theta(model: object, corpus: Optional[List] = None) -> Optional[DataFrame]:
+def get_theta(model: object, corpus: Optional[list] = None) -> Optional[DataFrame]:
     """Get topics vs documents (theta) matrix.
 
     Returns theta matrix of shape T x D, where T is the number of topics,
@@ -224,7 +242,7 @@ def get_theta(model: object, corpus: Optional[List] = None) -> Optional[DataFram
         # get_topic_dist() spans all model.k topics; keep only the live ones so
         # that theta stays aligned with get_phi.
         topic_ids = _live_topic_ids(model)
-        tdd = list(map(lambda x: x.get_topic_dist(), model.docs))
+        tdd = [x.get_topic_dist() for x in model.docs]
         theta = DataFrame(vstack(tdd).T).iloc[topic_ids]
 
     elif _is_gensim(model):
@@ -265,7 +283,7 @@ def get_theta(model: object, corpus: Optional[List] = None) -> Optional[DataFram
     return theta
 
 
-def get_docs(model: object) -> Optional[List[str]]:
+def get_docs(model: object) -> Optional[list[str]]:
     """Retrieve documents from topic model object.
 
     Parameters
@@ -279,10 +297,8 @@ def get_docs(model: object) -> Optional[List[str]]:
         List of documents.
     """
     if _is_tomotopy(model):
-        docs_raw = map(lambda x: x.words, model.docs)
-        return list(
-            map(lambda doc: " ".join(map(lambda x: model.vocabs[x], doc)), docs_raw)
-        )
+        docs_raw = (x.words for x in model.docs)
+        return [" ".join(model.vocabs[x] for x in doc) for doc in docs_raw]
     return None
 
 
@@ -290,7 +306,7 @@ def get_top_docs(
     docs: Sequence[str],
     model: object = None,
     theta: Optional[ndarray] = None,
-    corpus: Optional[List] = None,
+    corpus: Optional[list] = None,
     docs_num: int = 5,
     topics: Optional[Sequence[int]] = None,
 ) -> DataFrame:
@@ -325,7 +341,7 @@ def get_top_docs(
         raise ValueError("Please pass a model or a theta matrix to function")
 
     if theta is None:
-        theta = get_theta(model, corpus=corpus).values
+        theta = get_theta(model, corpus=corpus).to_numpy()
 
     theta = array(theta)
     if theta.ndim != 2:
@@ -340,7 +356,7 @@ def get_top_docs(
         count = min(docs_num, probs.size)
         idx = np.argpartition(probs, -count)[-count:]
         idx = idx[np.argsort(probs[idx])[::-1]]
-        result = Series(list(map(lambda x: docs[x], idx)))
+        result = Series([docs[x] for x in idx])
         result.name = f"topic{topic_id}"
         return result
 
@@ -355,7 +371,7 @@ def get_top_docs(
                 f"topics contains indices outside [0, {topics_num - 1}]: "
                 f"{sorted(set(out_of_range.tolist()))}"
             )
-    return concat(map(lambda x: _select_docs(docs, theta, x), topics_idx), axis=1)
+    return concat((_select_docs(docs, theta, x) for x in topics_idx), axis=1)
 
 
 def calc_topics_marg_probs(
@@ -494,11 +510,10 @@ def get_salient_terms(phi: ndarray, theta: ndarray) -> ndarray:
     contributions = np.zeros_like(p_tw)
     positive = p_tw > 0
     contributions[positive] = p_tw[positive] * np.log(ratio[positive])
-    saliency = p_w * contributions.sum(axis=1)
+    return p_w * contributions.sum(axis=1)
     # saliency(term w) = frequency(w)
     # * [sum_t p(t | w) * log(p(t | w)/p(t))] for topics t
     # p(t | w) = p(w | t) * p(t) / p(w)
-    return saliency
 
 
 def _calc_relevance(
@@ -553,6 +568,8 @@ def calc_terms_probs_ratio(
         Weight parameter. It determines the weight given to the probability
         of term W under topic T relative to its lift [1]_. Setting it to 1
         equals topic-specific probabilities of terms.
+    p_t : Union[numpy.ndarray, pandas.Series], optional
+        Marginal topic probabilities. Calculated from `phi` when omitted.
 
     References
     ----------
@@ -617,6 +634,8 @@ def get_relevant_terms(
         Weight parameter. It determines the weight given to the probability
         of term W under topic T relative to its lift [2]_. Setting it to 1
         equals topic-specific probabilities of terms.
+    p_t : Union[numpy.ndarray, pandas.Series], optional
+        Marginal topic probabilities. Calculated from `phi` when omitted.
 
     References
     ----------

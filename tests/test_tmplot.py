@@ -1,10 +1,12 @@
-import unittest
 import pickle as pkl
+import unittest
+
 from altair import LayerChart
-from tomotopy import LDAModel
-from src import tmplot as tm
-from numpy import random, floating, ndarray, allclose
 from ipywidgets import VBox
+from numpy import allclose, floating, ndarray, random
+from tomotopy import LDAModel
+
+from src import tmplot as tm
 
 
 class TestTmplot(unittest.TestCase):
@@ -119,22 +121,15 @@ class TestTmplot(unittest.TestCase):
     def test_get_topics_scatter(self):
         topics_dists = tm.get_topics_dist(self.phi)
         methods = ["tsne", "sem", "mds", "lle", "ltsa", "isomap"]
-        topics_scatters = list(
-            map(
-                lambda method: tm.get_topics_scatter(
+        topics_scatters = [tm.get_topics_scatter(
                     topics_dists, self.theta, method=method
-                ),
-                methods,
-            )
-        )
+                ) for method in methods]
         for scatter in topics_scatters:
             self.assertTupleEqual(scatter.shape, (self.tomotopy_model.k, 4))
 
     def test_get_topics_dist(self):
         methods = ["klb", "jsd", "jef", "hel", "bhat", "tv", "jac"]
-        topics_dists = list(
-            map(lambda method: tm.get_topics_dist(self.phi, method=method), methods)
-        )
+        topics_dists = [tm.get_topics_dist(self.phi, method=method) for method in methods]
         for dist in topics_dists:
             self.assertTupleEqual(
                 dist.shape, (self.tomotopy_model.k, self.tomotopy_model.k)
@@ -176,7 +171,7 @@ class TestTmplot(unittest.TestCase):
             self.tomotopy_model,
         ]
         closest_topics, dists = tm.get_closest_topics(models)
-        dists = random.normal(0, 0.10, dists.shape).__abs__()
+        dists = abs(random.normal(0, 0.10, dists.shape))
         stable_topics, stable_dists = tm.get_stable_topics(
             closest_topics, dists, norm=False
         )
@@ -401,8 +396,6 @@ class TestTmplot(unittest.TestCase):
             width=400,
             height=600,
         )
-        from ipywidgets import VBox
-
         self.assertIsInstance(report, VBox)
 
     def test_report_gensim_with_corpus(self):
@@ -414,8 +407,6 @@ class TestTmplot(unittest.TestCase):
         report = tm.report(
             self.gensim_model, docs=docs, corpus=self.gensim_corpus, width=200
         )
-        from ipywidgets import VBox
-
         self.assertIsInstance(report, VBox)
 
     # Additional tests for better coverage of edge cases
@@ -445,7 +436,7 @@ class TestTmplot(unittest.TestCase):
     def test_get_top_docs_with_theta_matrix(self):
         # Test get_top_docs when providing theta matrix instead of model
         docs = tm.get_docs(self.tomotopy_model)
-        theta_values = self.theta.values
+        theta_values = self.theta.to_numpy()
         top_docs = tm.get_top_docs(docs, theta=theta_values)
         self.assertEqual(top_docs.shape[0], 5)  # Default docs_num
 
@@ -491,8 +482,6 @@ class TestTmplot(unittest.TestCase):
             size_kws={"range": [100, 2000]},
             color_kws={"scheme": "viridis"},
         )
-        from altair import LayerChart
-
         self.assertIsInstance(chart, LayerChart)
 
     def test_plot_terms_with_custom_parameters(self):
@@ -556,7 +545,7 @@ class TestTmplot(unittest.TestCase):
         # Indexed by the vocabulary, in the model's own order.
         self.assertListEqual(list(phi.index), list(classifier.feature_names_out_))
         # Each topic is a distribution over words, as get_topics_dist requires.
-        self.assertTrue(allclose(phi.values.sum(axis=0), 1.0))
+        self.assertTrue(allclose(phi.to_numpy().sum(axis=0), 1.0))
 
     def test_btm_classifier_theta_matches_the_model(self):
         classifier, docs = self._btm_classifier()
@@ -565,7 +554,7 @@ class TestTmplot(unittest.TestCase):
         self.assertTupleEqual(theta.shape, (3, len(docs)))
         self.assertTrue(allclose(theta.values, classifier.matrix_docs_topics_.T))
         # Each document is a distribution over topics.
-        self.assertTrue(allclose(theta.values.sum(axis=0), 1.0))
+        self.assertTrue(allclose(theta.to_numpy().sum(axis=0), 1.0))
 
     def test_btm_classifier_phi_and_theta_agree_on_topics(self):
         classifier, _ = self._btm_classifier()

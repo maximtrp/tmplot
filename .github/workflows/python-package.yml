@@ -7,6 +7,28 @@ on:
     branches: ["main"]
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      # The same three tools Codacy runs, so their findings surface here
+      # instead of on the dashboard after a push.
+      - name: Install package and linters
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[test]' ruff prospector pylint
+      - name: Ruff
+        run: ruff check .
+      - name: Prospector
+        run: prospector --messages-only
+      - name: Pylint
+        run: pylint --rcfile=.pylintrc src/tmplot tests
+
   build:
     runs-on: ubuntu-latest
     strategy:
@@ -35,7 +57,12 @@ jobs:
         run: |
           coverage run --source src -m pytest .
           coverage xml
+      # Every matrix job runs the same suite, so one upload is enough. The
+      # action ends with a `final` call that closes the commit on Codacy, so
+      # uploading from all five would race: the first `final` wins and the
+      # rest are dropped.
       - name: Reporting coverage to Codacy
+        if: matrix.python-version == '3.12'
         uses: codacy/codacy-coverage-reporter-action@v1
         with:
           project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}

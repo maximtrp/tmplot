@@ -36,7 +36,7 @@ def test_unknown_scatter_method_has_clear_error():
 
 
 @pytest.mark.parametrize(
-    "distances,theta,message",
+    ("distances", "theta", "message"),
     [
         (np.zeros((2, 3)), np.ones((2, 1)), "square"),
         (np.array([[0.0, np.nan], [np.nan, 0.0]]), np.ones((2, 1)), "finite"),
@@ -197,8 +197,6 @@ def test_get_phi_rejects_unsupported_model():
 
 
 def test_optional_adapter_checks_do_not_warn_for_unrelated_objects():
-    import warnings
-
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         tm._helpers._is_gensim(object())
@@ -237,11 +235,15 @@ def test_entropy_handles_uniform_distribution_boundary():
 
 
 @pytest.mark.parametrize(
-    "phi",
-    [np.array([]), np.array([[np.nan]]), np.array([[-1.0]])],
+    ("phi", "match"),
+    [
+        (np.array([]), "non-empty 2D"),
+        (np.array([[np.nan]]), "finite non-negative"),
+        (np.array([[-1.0]]), "finite non-negative"),
+    ],
 )
-def test_entropy_rejects_invalid_inputs(phi):
-    with pytest.raises(ValueError):
+def test_entropy_rejects_invalid_inputs(phi, match):
+    with pytest.raises(ValueError, match=match):
         tm.entropy(phi)
 
 
@@ -293,10 +295,9 @@ def test_prepare_coords_rejects_wrong_label_count():
         patch(
             "src.tmplot._report.get_topics_scatter",
             return_value=pd.DataFrame({"x": [0, 1], "y": [0, 1]}),
-        ),
+        ),pytest.raises(ValueError, match="labels length")
     ):
-        with pytest.raises(ValueError, match="labels length"):
-            tm.prepare_coords(object(), labels=["only one"])
+        tm.prepare_coords(object(), labels=["only one"])
 
 
 def test_report_skips_disabled_panel_computation():
@@ -427,7 +428,7 @@ def test_closest_topics_matches_pairwise_reference(method):
     for topics_num in (5, 4):
         values = rng.random((120, topics_num))
         frames.append(pd.DataFrame(values / values.sum(axis=0), index=words))
-    reference, current = frames
+    reference, current = frames  # pylint: disable=unbalanced-tuple-unpacking
 
     dist_func = getattr(tm._distance, f"_dist_{method}")
     ref_values = reference.to_numpy()
@@ -658,7 +659,8 @@ def test_entropy_square_ambiguous_under_max_probs_requires_explicit_axis():
     # A 2x2 doubly stochastic matrix is always symmetric, so use a 3x3
     # circulant one: every row and every column sums to 1, but phi != phi.T.
     phi = np.array([[0.7, 0.2, 0.1], [0.1, 0.7, 0.2], [0.2, 0.1, 0.7]])
-    assert np.allclose(phi.sum(0), 1) and np.allclose(phi.sum(1), 1)
+    assert np.allclose(phi.sum(0), 1)
+    assert np.allclose(phi.sum(1), 1)
     assert not np.allclose(phi, phi.T)
     with pytest.raises(ValueError, match="cannot infer the topics axis"):
         tm.entropy(phi, max_probs=True)
@@ -841,7 +843,7 @@ def test_large_vocabulary_does_not_underflow(method):
 
 
 @pytest.mark.parametrize(
-    "phi,message",
+    ("phi", "message"),
     [
         (np.ones(3), "2D array"),
         (np.array([[[0.5]]]), "2D array"),
@@ -874,23 +876,21 @@ def test_cross_dists_rejects_arguments_a_measure_cannot_use(method):
 def test_registering_a_distance_without_implementing_it_is_caught():
     """V3: guards a maintainer adding a name to the registry and nothing else."""
     registry = dict(tm._distance.DIST_FUNCS, brand_new=lambda a, b: 0.0)
-    with patch.object(tm._distance, "DIST_FUNCS", registry):
-        with pytest.raises(AssertionError, match="was not handled"):
-            tm._distance._cross_dists(np.eye(3), np.eye(3), "brand_new")
+    with patch.object(tm._distance, "DIST_FUNCS", registry), pytest.raises(AssertionError, match="was not handled"):
+        tm._distance._cross_dists(np.eye(3), np.eye(3), "brand_new")
 
 
 def test_registering_a_scatter_method_without_implementing_it_is_caught():
     """V3 (twin) for get_topics_scatter."""
     distances = np.array([[0.0, 1.0, 2.0], [1.0, 0.0, 1.0], [2.0, 1.0, 0.0]])
     with patch.object(
-        tm._distance, "SCATTER_METHODS", tm._distance.SCATTER_METHODS + ["brand_new"]
-    ):
-        with pytest.raises(AssertionError, match="was not handled"):
-            tm.get_topics_scatter(distances, np.ones((3, 2)), method="brand_new")
+        tm._distance, "SCATTER_METHODS", [*tm._distance.SCATTER_METHODS, "brand_new"]
+    ), pytest.raises(AssertionError, match="was not handled"):
+        tm.get_topics_scatter(distances, np.ones((3, 2)), method="brand_new")
 
 
 @pytest.mark.parametrize(
-    "kwargs,error,message",
+    ("kwargs", "error", "message"),
     [
         ({"theta": np.ones(3)}, ValueError, "2D topics x documents"),
         ({"theta": np.ones((2, 2)), "docs_num": 0}, ValueError, "docs_num must be"),
@@ -904,7 +904,7 @@ def test_get_top_docs_validates_its_inputs(kwargs, error, message):
 
 
 @pytest.mark.parametrize(
-    "phi,p_t,message",
+    ("phi", "p_t", "message"),
     [
         (np.ones(4), np.ones(2), "phi matrix must be a 2D"),
         (np.ones((2, 2)), np.ones((2, 2)), "p_t array must be a 1D"),
@@ -919,7 +919,7 @@ def test_calc_terms_marg_probs_validates_its_inputs(phi, p_t, message):
 
 
 @pytest.mark.parametrize(
-    "kwargs,error,message",
+    ("kwargs", "error", "message"),
     [
         ({"phi": np.ones(4), "topic": 0}, ValueError, "2D words x topics"),
         ({"phi": np.ones((3, 2)), "topic": 5}, IndexError, "out of bounds"),
@@ -966,7 +966,7 @@ def test_closest_topics_rejects_a_topic_with_no_shared_probability_mass():
 
 
 @pytest.mark.parametrize(
-    "closest,dist",
+    ("closest", "dist"),
     [(np.zeros(3, dtype=int), np.zeros(3)), (np.zeros((2, 2), dtype=int), np.zeros(2))],
 )
 def test_stable_topics_rejects_non_2d_input(closest, dist):
@@ -1056,7 +1056,7 @@ def test_duplicate_word_labels_do_not_corrupt_relevance():
 
 
 @pytest.mark.parametrize(
-    "closest,dist,kwargs,expected_rows",
+    ("closest", "dist", "kwargs", "expected_rows"),
     [
         (np.zeros((2, 1), dtype=int), np.zeros((2, 1)), {}, 0),
         (np.zeros((2, 3), dtype=int), np.zeros((2, 3)), {"thres_models": 9}, 0),
@@ -1129,7 +1129,9 @@ def test_selecting_a_topic_redraws_every_panel():
         get_top_docs.return_value = pd.DataFrame({"topic2": ["doc one"]})
         _topic_dropdown(report).value = 2
 
-    assert plot_terms.called and plot_scatter.called and plot_docs.called
+    assert plot_terms.called
+    assert plot_scatter.called
+    assert plot_docs.called
     # every panel followed the selection to the same topic
     assert calc_terms.call_args.kwargs["topic"] == 2
     assert plot_scatter.call_args.kwargs["topic"] == 2
@@ -1221,10 +1223,9 @@ def test_model_checks_are_false_without_their_packages():
 @pytest.mark.parametrize("function", ["get_phi", "get_theta"])
 def test_unsupported_model_names_the_missing_packages(function):
     """E1: the error should say what to install, not just that it failed."""
-    with _no_model_packages():
-        with pytest.warns(UserWarning, match="tomotopy, gensim, bitermplus"):
-            with pytest.raises(ValueError, match="Unsupported model type"):
-                getattr(tm, function)(object())
+    with _no_model_packages(), pytest.warns(UserWarning, match="tomotopy, gensim, bitermplus"):
+        with pytest.raises(ValueError, match="Unsupported model type"):
+            getattr(tm, function)(object())
 
 
 def test_mds_uses_the_legacy_argument_on_older_scikit_learn():

@@ -1,45 +1,51 @@
+from __future__ import annotations
+
 # TODO: heatmap of docs in topics
 # TODO: topic dynamics in time
 # TODO: word cloud
-__all__ = ["plot_scatter_topics", "plot_terms", "plot_docs"]
-from typing import Optional, Union, Sequence
-from IPython.display import HTML
-from pandas import DataFrame, option_context
-from numpy import ndarray
+__all__ = ["plot_docs", "plot_scatter_topics", "plot_terms"]
+from collections.abc import Sequence
+from typing import Optional, Union
+
 from altair import (
     AxisConfig,
     Chart,
+    Color,
+    LayerChart,
+    Legend,
+    Scale,
+    Size,
+    Text,
     X,
     Y,
-    LayerChart,
-    Size,
-    Color,
     value,
-    Text,
-    Scale,
-    Legend,
 )
+from IPython.display import HTML
+from numpy import ndarray
+from pandas import DataFrame, option_context
 
 
 def plot_scatter_topics(
     topics_coords: Union[ndarray, DataFrame],
     x_col: str = "x",
     y_col: str = "y",
-    topic: int = None,
-    size_col: str = None,
-    label_col: str = None,
-    color_col: str = None,
-    topic_col: str = None,
+    topic: Optional[int] = None,
+    size_col: Optional[str] = None,
+    label_col: Optional[str] = None,
+    # Accepted but unused: the scatter colours by topic index. Kept because
+    # dropping it would break callers passing it positionally or by name.
+    color_col: Optional[str] = None,  # noqa: ARG001
+    topic_col: Optional[str] = None,
     font_size: int = 13,
-    x_kws: dict = None,
-    y_kws: dict = None,
-    chart_kws: dict = None,
-    circle_kws: dict = None,
-    circle_enc_kws: dict = None,
-    text_kws: dict = None,
-    text_enc_kws: dict = None,
-    size_kws: dict = None,
-    color_kws: dict = None,
+    x_kws: Optional[dict] = None,
+    y_kws: Optional[dict] = None,
+    chart_kws: Optional[dict] = None,
+    circle_kws: Optional[dict] = None,
+    circle_enc_kws: Optional[dict] = None,
+    text_kws: Optional[dict] = None,
+    text_enc_kws: Optional[dict] = None,
+    size_kws: Optional[dict] = None,
+    color_kws: Optional[dict] = None,
 ) -> LayerChart:
     """Topics scatter plot in 2D.
 
@@ -305,10 +311,7 @@ def plot_docs(
         # html_kws = {'classes': 'plot'}
         html_kws = {}
 
-    if isinstance(docs, DataFrame):
-        df_docs = docs.copy()
-    else:
-        df_docs = DataFrame({"docs": docs})
+    df_docs = docs.copy() if isinstance(docs, DataFrame) else DataFrame({"docs": docs})
 
     with option_context("display.max_colwidth", 0):
         # df_docs.style.set_properties(**{'text-align': 'center'})
