@@ -754,18 +754,28 @@ def test_jaccard_tie_breaking_matches_the_pairwise_reference(top_words):
 
 def test_jaccard_ties_are_actually_exercised_by_the_fixture():
     """Guards the guard: if the fixture stopped producing ties across the
-    cutoff, the test above would pass no matter how top-k was selected."""
+    cutoff, the test above would pass no matter how top-k was selected.
+
+    Asserting that argsort and argpartition happen to disagree would pin an
+    unspecified numpy tie order. Pin instead the two properties that make
+    top-k genuinely ambiguous: more words sit on the cutoff value than there
+    are slots for them, and those tied words differ in whether the other
+    topic also selected them, so the choice moves the Jaccard overlap.
+    """
     phi = _phi_with_ties()
     top_words = 10
-    selections = []
-    for chooser in (
-        lambda col: np.argsort(col)[-top_words:],
-        lambda col: np.argpartition(col, -top_words)[-top_words:],
-    ):
-        selections.append([set(chooser(phi[:, t]).tolist()) for t in range(2)])
-    argsorted, partitioned = selections
-    assert argsorted != partitioned
-    assert len(argsorted[0] & argsorted[1]) != len(partitioned[0] & partitioned[1])
+
+    def cutoff_ties(topic):
+        column = phi[:, topic]
+        cutoff = np.sort(column)[-top_words]
+        selected = set(np.argsort(column)[-top_words:].tolist())
+        on_cutoff = set(np.flatnonzero(column == cutoff).tolist())
+        return selected, on_cutoff
+
+    first, first_ties = cutoff_ties(0)
+    second, _ = cutoff_ties(1)
+    assert len(first_ties) > len(first_ties & first)
+    assert {word in second for word in first_ties} == {True, False}
 
 
 def test_single_topic_behaviour_across_the_api():
