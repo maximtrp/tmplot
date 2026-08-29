@@ -7,7 +7,9 @@ from typing import Optional, Union
 import numpy as np
 from pandas import DataFrame, Index
 from scipy.spatial import distance
-from scipy.special import kl_div, xlogy
+
+# kl_div and xlogy are compiled ufuncs; pylint cannot see them statically.
+from scipy.special import kl_div, xlogy  # pylint: disable=no-name-in-module
 from sklearn.manifold import (
     MDS,
     TSNE,
@@ -267,7 +269,8 @@ def _classical_mds(distances: np.ndarray, n_components: int = 2) -> np.ndarray:
     centering = np.eye(count) - np.ones((count, count)) / count
     gram = -0.5 * centering @ (distances**2) @ centering
     eigenvalues, eigenvectors = np.linalg.eigh(gram)
-    positive = eigenvalues > np.finfo(float).eps
+    # finfo builds its attributes at runtime, so pylint misses .eps.
+    positive = eigenvalues > np.finfo(float).eps  # pylint: disable=no-member
     coords = eigenvectors[:, positive] * np.sqrt(eigenvalues[positive])
 
     # LocallyLinearEmbedding rejects an input with fewer dimensions than it is
