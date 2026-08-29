@@ -7,4 +7,4 @@ from ._report import *  # noqa: F401, F403
 from ._stability import *  # noqa: F401, F403
 from ._vis import *  # noqa: F401, F403
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
