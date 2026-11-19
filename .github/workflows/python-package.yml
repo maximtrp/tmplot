@@ -30,7 +30,7 @@ jobs:
         run: pylint --rcfile=.pylintrc src/tmplot tests
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -70,7 +70,7 @@ jobs:
 
   oldest-scikit-learn:
     name: Declared minimum scikit-learn
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
